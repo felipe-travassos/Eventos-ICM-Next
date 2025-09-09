@@ -1,46 +1,67 @@
-import { Timestamp } from 'firebase/firestore';
+import { FieldValue } from 'firebase/firestore';
 
-export type UserRole = 'pastor' | 'secretario_regional' | 'secretario_local' | 'membro';
-
-export interface User {
+// Tipo para LEITURA (quando os dados vêm do Firestore)
+export interface EventRegistration {
     id: string;
-    name: string;
-    email: string;
-    role: UserRole;
-    cpf?: string;
-    phone?: string;
-    churchId?: string;
-    photoURL?: string;
+    eventId: string;
+    userId: string;
+    userName: string;
+    userEmail: string;
+    userPhone: string;
+    userChurch: string;
+    status: 'pending' | 'confirmed' | 'cancelled';
+    paymentStatus: 'pending' | 'paid' | 'refunded';
+    paymentDate?: Date;
     createdAt: Date;
+    updatedAt: Date;
 }
 
-export interface Church {
-    id: string;
-  name: string;
-  pastorId?: string;
-  address?: string;
-  createdAt: Date;
-  updatedAt: Date;
+// Tipo para CRIAÇÃO (quando os dados vão para o Firestore)
+export interface EventRegistrationCreate {
+    eventId: string;
+    userId: string;
+    userName: string;
+    userEmail: string;
+    userPhone: string;
+    userChurch: string;
+    status: 'pending' | 'confirmed' | 'cancelled';
+    paymentStatus: 'pending' | 'paid' | 'refunded';
+    createdAt: FieldValue;
+    updatedAt: FieldValue;
 }
 
+// Faça o mesmo para Event
 export interface Event {
     id: string;
     title: string;
     description: string;
     date: Date;
+    endDate?: Date;
     location: string;
+    capacity: number;
+    registered: number;
+    price: number;
+    churchId: string;
+    churchName: string;
+    status: 'active' | 'inactive' | 'cancelled';
     imageURL?: string;
-    maxParticipants?: number;
-    currentParticipants: number;
-    status: 'active' | 'ended' | 'cancelled';
     createdAt: Date;
-    createdBy: string;
+    updatedAt: Date;
 }
 
-export interface EventRegistration {
-    id: string;
-    eventId: string;
-    userId: string;
-    registrationDate: Date;
-    status: 'confirmed' | 'pending' | 'cancelled';
+export interface EventCreate {
+    title: string;
+    description: string;
+    date: Date;
+    endDate?: Date;
+    location: string;
+    capacity: number;
+    registered: number;
+    price: number;
+    churchId: string;
+    churchName: string;
+    status: 'active' | 'inactive' | 'cancelled';
+    imageURL?: string;
+    createdAt: FieldValue;
+    updatedAt: FieldValue;
 }

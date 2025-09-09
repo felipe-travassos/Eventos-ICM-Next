@@ -2,19 +2,18 @@
 'use client';
 
 import React from 'react';
-import Footer from './Footer';
 
 interface LayoutProps {
     children: React.ReactNode;
+    showContainer?: boolean;
 }
 
-const Layout = ({ children }: LayoutProps) => {
+const Layout = ({ children, showContainer = false }: LayoutProps) => {
     return (
         <div className="min-h-screen flex flex-col">
-            <main className="flex-grow">
+            <main className={`flex-grow ${showContainer ? 'container mx-auto p-4' : ''}`}>
                 {children}
             </main>
-            <Footer />
         </div>
     );
 };

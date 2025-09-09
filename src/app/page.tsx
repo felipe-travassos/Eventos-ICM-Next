@@ -14,7 +14,7 @@ export default function HomePage() {
   const [registeringEventId, setRegisteringEventId] = useState<string | null>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
-  const { userData, currentUser } = useAuth(); // Adicionei 'user' para verificar autenticação
+  const { userData, currentUser } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -25,7 +25,7 @@ export default function HomePage() {
         console.log('Eventos encontrados:', eventsData.length);
 
         // Filtrar apenas eventos ativos para a página inicial
-        const activeEvents = eventsData.filter(event => {
+        const activeEvents = eventsData.filter((event: Event) => {
           const isActive = event.status === 'active';
           console.log(`Evento: ${event.title}, Status: ${event.status}, Ativo: ${isActive}`);
           return isActive;
@@ -56,20 +56,26 @@ export default function HomePage() {
   }, [events.length]);
 
   const handleSubscribe = async (eventId: string) => {
-    // Verificar se o usuário está autenticado (user) e tem dados (userData)
     if (!currentUser || !userData) {
       router.push('/login');
       return;
     }
 
+    // Verificar se há vagas disponíveis
+    const event = events.find(e => e.id === eventId);
+    if (event && event.registered >= event.capacity) {
+      alert('Não há vagas disponíveis para este evento');
+      return;
+    }
+
     setRegisteringEventId(eventId);
     try {
-      await registerForEvent(eventId, userData.id);
+      await registerForEvent(eventId, userData.id, userData);
       alert('Inscrição realizada com sucesso!');
 
-      // Atualizar a lista de eventos para refletir a nova inscrição
+      // Atualizar a lista de eventos
       const updatedEvents = await getAllEvents();
-      const activeEvents = updatedEvents.filter(event => event.status === 'active');
+      const activeEvents = updatedEvents.filter((event: Event) => event.status === 'active');
       setEvents(activeEvents);
     } catch (error: any) {
       console.error('Erro na inscrição:', error);
@@ -114,7 +120,7 @@ export default function HomePage() {
             Participe dos eventos especiais da nossa comunidade e fortaleça sua fé.
           </p>
 
-          {!currentUser ? ( // Alterado para verificar 'user' em vez de 'userData'
+          {!currentUser ? (
             <div className="space-x-4">
               <Link
                 href="/login"
@@ -137,7 +143,6 @@ export default function HomePage() {
               >
                 Minhas Inscrições
               </Link>
-              {/* Botão para admin se for secretário, pastor ou secretário local */}
               {(userData?.role === 'secretario_regional' ||
                 userData?.role === 'pastor' ||
                 userData?.role === 'secretario_local') && (
@@ -173,7 +178,6 @@ export default function HomePage() {
             <p className="text-gray-400">
               Volte em breve para conferir novos eventos!
             </p>
-            {/* Mostrar link para admin se for secretário, pastor ou secretário local */}
             {(userData?.role === 'secretario_regional' ||
               userData?.role === 'pastor' ||
               userData?.role === 'secretario_local') && (
@@ -203,6 +207,8 @@ export default function HomePage() {
                   >
                     <div className="bg-white p-6 md:p-8">
                       <div className="grid md:grid-cols-2 gap-8 items-center">
+
+                        {/* Imagem do Evento */}
                         {/* Imagem do Evento */}
                         <div className="relative h-64 md:h-96 rounded-lg overflow-hidden">
                           {event.imageURL ? (
@@ -213,7 +219,7 @@ export default function HomePage() {
                             />
                           ) : (
                             <div className="w-full h-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center">
-                              <span className="text-white text-2xl font-semibold">Evento</span>
+                              <span className="text-white text-2xl font-semibold">{event.title}</span>
                             </div>
                           )}
                         </div>
@@ -238,8 +244,8 @@ export default function HomePage() {
                               {event.location}
                             </p>
                             <p className="text-sm text-gray-500">
-                              Inscrições: {event.currentParticipants}
-                              {event.maxParticipants ? `/${event.maxParticipants}` : ''}
+                              Vagas: {event.registered}/{event.capacity}
+                              {event.price > 0 && ` • Valor: R$ ${event.price.toFixed(2)}`}
                             </p>
                           </div>
 
@@ -247,24 +253,29 @@ export default function HomePage() {
                             {event.description}
                           </p>
 
-                          {event.maxParticipants && event.currentParticipants >= event.maxParticipants ? (
+                          {event.registered >= event.capacity ? (
                             <div className="bg-red-100 text-red-800 p-3 rounded text-center">
                               <strong>Vagas esgotadas</strong>
                               <p className="text-sm mt-1">Todas as vagas foram preenchidas</p>
                             </div>
                           ) : (
                             <div className="pt-4">
-                              {currentUser ? ( // Alterado para verificar 'user' em vez de 'userData'
+                              {currentUser ? (
                                 <button
                                   onClick={() => handleSubscribe(event.id)}
-                                  disabled={registeringEventId === event.id}
-                                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center w-full"
+                                  disabled={registeringEventId === event.id || event.registered >= event.capacity}
+                                  className={`px-6 py-3 rounded-lg font-semibold transition duration-200 flex items-center justify-center w-full ${event.registered >= event.capacity
+                                    ? 'bg-gray-400 cursor-not-allowed'
+                                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                                    } ${registeringEventId === event.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                   {registeringEventId === event.id ? (
                                     <>
                                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                                       Inscrevendo...
                                     </>
+                                  ) : event.registered >= event.capacity ? (
+                                    'Vagas Esgotadas'
                                   ) : (
                                     <>
                                       <TicketIcon />
@@ -337,7 +348,7 @@ export default function HomePage() {
             Há sempre um lugar para você em nossa família espiritual.
           </p>
 
-          {!currentUser ? ( // Alterado para verificar 'user' em vez de 'userData'
+          {!currentUser ? (
             <div className="space-x-4">
               <Link
                 href="/register"
@@ -366,7 +377,6 @@ export default function HomePage() {
               >
                 Meu Perfil
               </Link>
-              {/* Botão para admin se for secretário, pastor ou secretário local */}
               {(userData?.role === 'secretario_regional' ||
                 userData?.role === 'pastor' ||
                 userData?.role === 'secretario_local') && (

@@ -2,7 +2,6 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 
 const Footer = () => {
     const currentYear = new Date().getFullYear();
@@ -19,7 +18,6 @@ const Footer = () => {
                     </div>
 
                     <div className="flex flex-col items-center md:items-end space-y-3">
-                        {/* Contatos com ícones */}
                         <div className="flex flex-col space-y-2">
                             <div className="flex items-center justify-end space-x-2">
                                 <svg className="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
@@ -36,7 +34,6 @@ const Footer = () => {
                             </div>
                         </div>
 
-                        {/* Copyright Estilizado */}
                         <div className="text-center md:text-right pt-4 border-t border-gray-800 w-full">
                             <p className="text-gray-400 text-sm font-light">
                                 © {currentYear} Felipe Travassos. Todos os direitos reservados.
@@ -52,7 +49,6 @@ const Footer = () => {
                     </div>
                 </div>
 
-                {/* Logo adicional no centro (opcional) */}
                 <div className="flex justify-center mt-8">
                     <div className="flex items-center space-x-2 text-gray-500 text-xs">
                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">

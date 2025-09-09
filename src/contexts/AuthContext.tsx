@@ -14,6 +14,8 @@ import { auth, db } from '@/lib/firebase/config';
 import { User, UserRole } from '@/types';
 import Navbar from '@/components/layout/Navbar';
 import { useRouter } from 'next/navigation'; // ← Correção aqui
+import Layout from '@/components/layout/Layout';
+import Footer from '@/components/layout/Footer';
 
 interface AuthContextType {
     currentUser: FirebaseUser | null;
@@ -119,9 +121,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             {!loading && (
                 <>
                     {currentUser && <Navbar />}
-                    <main className={currentUser ? "container mx-auto p-4" : ""}>
+                    <Layout showContainer={!!currentUser}>
                         {children}
-                    </main>
+                    </Layout>
+                    <Footer />
                 </>
             )}
         </AuthContext.Provider>
