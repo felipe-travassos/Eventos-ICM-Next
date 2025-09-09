@@ -16,6 +16,7 @@ export interface EventRegistration {
     updatedAt: Date;
 }
 
+
 // Tipo para CRIAÇÃO (quando os dados vão para o Firestore)
 export interface EventRegistrationCreate {
     eventId: string;
@@ -38,15 +39,16 @@ export interface Event {
     date: Date;
     endDate?: Date;
     location: string;
-    capacity: number;
-    registered: number;
+    maxParticipants: number;
+    currentParticipants: number;
     price: number;
     churchId: string;
     churchName: string;
-    status: 'active' | 'inactive' | 'cancelled';
-    imageURL?: string;
+    status: 'active' | 'canceled' | 'completed';
     createdAt: Date;
     updatedAt: Date;
+    imageURL?: string;
+    createdBy?: string;
 }
 
 export interface EventCreate {
