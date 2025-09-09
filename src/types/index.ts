@@ -7,6 +7,8 @@ export interface User {
     name: string;
     email: string;
     role: UserRole;
+    cpf?: string;
+    phone?: string;
     churchId?: string;
     photoURL?: string;
     createdAt: Date;
@@ -14,11 +16,11 @@ export interface User {
 
 export interface Church {
     id: string;
-    name: string;
-    address: string;
-    pastorId?: string;
-    region: string;
-    createdAt: Date;
+  name: string;
+  pastorId?: string;
+  address?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Event {

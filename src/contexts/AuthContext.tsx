@@ -13,6 +13,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase/config';
 import { User, UserRole } from '@/types';
 import Navbar from '@/components/layout/Navbar';
+import { useRouter } from 'next/navigation'; // ← Correção aqui
 
 interface AuthContextType {
     currentUser: FirebaseUser | null;
@@ -34,7 +35,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
     const [userData, setUserData] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
-    const [isClient, setIsClient] = useState(false); // ← Novo estado para controle de SSR
+    const [isClient, setIsClient] = useState(false);
+    const router = useRouter(); // ← Hook useRouter
 
     const login = async (email: string, password: string) => {
         await signInWithEmailAndPassword(auth, email, password);
@@ -57,7 +59,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const logout = async () => {
-        await signOut(auth);
+        try {
+            await signOut(auth);
+            setCurrentUser(null);
+            setUserData(null);
+            router.push('/'); // ← Usando useRouter corretamente
+        } catch (error) {
+            console.error('Erro ao fazer logout:', error);
+        }
     };
 
     const resetPassword = async (email: string) => {
@@ -65,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     useEffect(() => {
-        setIsClient(true); // ← Marca que estamos no cliente
+        setIsClient(true);
 
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             setCurrentUser(user);
