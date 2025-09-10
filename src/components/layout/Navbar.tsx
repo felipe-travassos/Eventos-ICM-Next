@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { UserRole } from '@/types';
 
 const Navbar: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -26,9 +25,6 @@ const Navbar: React.FC = () => {
                     <Link href="/" className="hover:underline">
                         Início
                     </Link>
-                    {/* <Link href="/events" className="hover:underline">
-                        Eventos
-                    </Link> */}
                     <Link href="/my-registrations" className="hover:underline">
                         Minhas Inscrições
                     </Link>
@@ -39,13 +35,16 @@ const Navbar: React.FC = () => {
                     {isAdmin && (
                         <>
                             <Link href="/admin/events" className="hover:underline">
-                                Gerenciar Eventos
+                                Eventos
                             </Link>
                             <Link href="/admin/churches" className="hover:underline">
-                                Gerenciar Igrejas
+                                Gestão de Igrejas
                             </Link>
                             <Link href="/admin/users" className="hover:underline">
-                                Gerenciar Usuários
+                                Gestão de Usuários
+                            </Link>
+                            <Link href="/admin/event-management" className="hover:underline">
+                                Gestão de Inscrições em Eventos
                             </Link>
                         </>
                     )}
