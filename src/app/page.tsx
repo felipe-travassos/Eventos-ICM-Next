@@ -138,7 +138,6 @@ export default function HomePage() {
         // Log para debug
         console.log('Eventos carregados:', eventsData.length);
         eventsData.forEach(event => {
-          console.log(`📊 ${event.title}: ${event.currentParticipants}/${event.maxParticipants} vagas`);
         });
 
         const activeEvents = eventsData.filter((event: Event) => event.status === 'active');

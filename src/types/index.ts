@@ -9,6 +9,8 @@ export interface EventRegistration {
     userEmail: string;
     userPhone: string;
     userChurch: string;
+    churchName: string;
+    pastorName: string;
     status: 'pending' | 'confirmed' | 'cancelled';
     paymentStatus: 'pending' | 'paid' | 'refunded';
     paymentDate?: Date;

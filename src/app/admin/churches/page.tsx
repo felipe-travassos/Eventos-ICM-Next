@@ -83,47 +83,43 @@ export default function AdminChurches() {
 
         setLoading(true);
         try {
+            // Encontrar dados do pastor selecionado
+            const selectedPastor = users.find(user => user.id === pastorId);
+
+            const churchData = {
+                name,
+                address,
+                region,
+                pastorId: pastorId || null,
+                pastorName: selectedPastor?.name || null, // Adicionar nome do pastor
+                updatedAt: new Date()
+            };
+
             if (editingChurch) {
                 // Atualizar igreja existente
-                await updateDoc(doc(db, 'churches', editingChurch.id), {
-                    name,
-                    address,
-                    region,
-                    pastorId: pastorId || null
-                });
+                await updateDoc(doc(db, 'churches', editingChurch.id), churchData);
 
-                setEditingChurch(null);
+                // Atualizar estado local
+                setChurches(prev => prev.map(church =>
+                    church.id === editingChurch.id
+                        ? { ...church, ...churchData }
+                        : church
+                ));
+
                 alert('Igreja atualizada com sucesso!');
             } else {
-                // Salvar nova igreja no Firestore
-                await addDoc(collection(db, 'churches'), {
-                    name,
-                    address,
-                    region,
-                    pastorId: pastorId || null,
+                // Nova igreja
+                const newChurch = {
+                    ...churchData,
                     createdAt: new Date()
-                });
+                };
 
+                const docRef = await addDoc(collection(db, 'churches'), newChurch);
+                setChurches(prev => [...prev, { id: docRef.id, ...newChurch }]);
                 alert('Igreja cadastrada com sucesso!');
             }
 
-            // Limpar formulário e esconder
             resetForm();
-
-            // Recarregar igrejas
-            const querySnapshot = await getDocs(collection(db, 'churches'));
-            const churchesData: Church[] = [];
-
-            querySnapshot.forEach((doc) => {
-                const data = doc.data();
-                churchesData.push({
-                    id: doc.id,
-                    ...data,
-                    createdAt: data.createdAt.toDate()
-                } as Church);
-            });
-
-            setChurches(churchesData);
 
         } catch (error) {
             console.error('Erro ao salvar igreja:', error);
