@@ -7,14 +7,25 @@ import {
     query,
     where,
     updateDoc,
-    increment,
     addDoc,
-    orderBy,
     deleteDoc,
 } from 'firebase/firestore';
 
 import { db } from '@/lib/firebase/config';
 import { EventRegistration, Event } from '@/types';
+
+// export const updatePaymentStatus = async (registrationId: string, status: 'pending' | 'paid' | 'refunded') => {
+//     try {
+//         await db.collection('eventRegistrations').doc(registrationId).update({
+//             paymentStatus: status,
+//             updatedAt: new Date(),
+//         });
+//         return { success: true };
+//     } catch (error) {
+//         console.error('Erro ao atualizar status:', error);
+//         return { success: false, error: 'Erro ao atualizar status' };
+//     }
+// };
 
 /**
  * Busca os detalhes completos de uma igreja pelo ID

@@ -15,26 +15,28 @@ interface RegistrationWithDetails extends EventRegistration {
     event?: Event;
 }
 
+
 /**
  * Página principal que exibe as inscrições do usuário
  * Permite visualizar e gerenciar inscrições em eventos
  */
 export default function MyRegistrationsPage() {
+
     // Estado para armazenar as inscrições com detalhes
     const [registrations, setRegistrations] = useState<RegistrationWithDetails[]>([]);
-
     // Estado para controlar o carregamento dos dados
     const [loading, setLoading] = useState(true);
-
     // Estado para controlar qual inscrição está sendo excluída
     const [deletingId, setDeletingId] = useState<string | null>(null);
-
     // Dados de autenticação do usuário
     const { userData, currentUser } = useAuth();
-
     // Estado para armazenar informações da igreja do usuário
     const [userChurch, setUserChurch] = useState<{ id: string; name: string; pastor: string; pastorId: string } | null>(null);
 
+    //Estados do Mercado pago
+    // const [processingPayment, setProcessingPayment] = useState<string | null>(null);
+    // const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
+    // const [showPaymentModal, setShowPaymentModal] = useState(false);
     /**
      * Efeito para carregar os dados da igreja do usuário
      * Executa quando userData é atualizado
@@ -110,6 +112,98 @@ export default function MyRegistrationsPage() {
 
         fetchRegistrationsWithDetails();
     }, [currentUser]);
+
+    /**
+ * Função para iniciar o processo de pagamento PIX
+ */
+    // const handlePayment = async (registration: RegistrationWithDetails) => {
+    //     if (!registration.event) return;
+
+    //     setProcessingPayment(registration.id);
+
+    //     try {
+    //         // Calcular valor (você pode ajustar a lógica de preço conforme necessário)
+    //         const amount = registration.event.price || 50; // Valor padrão se não houver preço definido
+
+    //         const paymentRequest = {
+    //             transaction_amount: amount,
+    //             description: `Inscrição: ${registration.event.title}`,
+    //             payment_method_id: 'pix' as const,
+    //             payer: {
+    //                 email: registration.userEmail,
+    //                 first_name: registration.userName.split(' ')[0],
+    //                 last_name: registration.userName.split(' ').slice(1).join(' '),
+    //             },
+    //             metadata: {
+    //                 registrationId: registration.id,
+    //                 eventId: registration.eventId,
+    //                 userId: currentUser!.uid,
+    //             },
+    //         };
+
+    //         const paymentResult = await createPixPayment(paymentRequest);
+
+    //         if (paymentResult.success && paymentResult.qrCode) {
+    //             setPaymentData({
+    //                 registrationId: registration.id,
+    //                 eventId: registration.eventId,
+    //                 amount,
+    //                 description: paymentRequest.description,
+    //                 qrCode: paymentResult.qrCode,
+    //                 qrCodeBase64: paymentResult.qrCodeBase64,
+    //                 ticketUrl: paymentResult.ticketUrl,
+    //                 paymentId: paymentResult.paymentId,
+    //             });
+    //             setShowPaymentModal(true);
+    //         } else {
+    //             alert('Erro ao processar pagamento. Tente novamente.');
+    //         }
+    //     } catch (error) {
+    //         console.error('Erro no pagamento:', error);
+    //         alert('Erro ao processar pagamento');
+    //     } finally {
+    //         setProcessingPayment(null);
+    //     }
+    // };
+
+    /**
+     * Função para verificar status do pagamento
+     */
+    // const checkPaymentStatus = async (paymentId: string, registrationId: string) => {
+    //     try {
+    //         // Você pode implementar polling para verificar o status
+    //         // ou usar webhooks do Mercado Pago
+    //         const status = await getPaymentStatus(paymentId);
+
+    //         if (status && status.status === 'approved') {
+    //             // Atualizar status no Firebase
+    //             await updatePaymentStatus(registrationId, 'paid');
+
+    //             // Atualizar estado local
+    //             setRegistrations(prev => prev.map(reg =>
+    //                 reg.id === registrationId
+    //                     ? { ...reg, paymentStatus: 'paid' }
+    //                     : reg
+    //             ));
+
+    //             alert('Pagamento confirmado!');
+    //             setShowPaymentModal(false);
+    //         }
+    //     } catch (error) {
+    //         console.error('Erro ao verificar status:', error);
+    //     }
+    // };
+
+    /**
+     * Função para copiar PIX
+     */
+    // const copyPixCode = () => {
+    //     if (paymentData?.qrCode) {
+    //         navigator.clipboard.writeText(paymentData.qrCode)
+    //             .then(() => alert('Código PIX copiado!'))
+    //             .catch(() => alert('Erro ao copiar código'));
+    //     }
+    // };
 
     /**
      * Função para excluir permanentemente uma inscrição
@@ -269,7 +363,10 @@ export default function MyRegistrationsPage() {
                                     <div className="flex justify-between items-center pt-4 border-t">
                                         {registration.paymentStatus === 'pending' && (
                                             <div className="space-x-3">
-                                                <button className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition text-sm">
+                                                <button
+                                                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition text-sm"
+                                                    onClick={() => console.log("clicou")}
+                                                >
                                                     Realizar Pagamento
                                                 </button>
                                                 <button

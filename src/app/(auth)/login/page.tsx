@@ -10,7 +10,11 @@ export default function Login() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const { login, currentUser } = useAuth();
+    const {
+        login,
+        currentUser
+    } = useAuth();
+
     const router = useRouter();
 
     // Redirecionar se já estiver logado
@@ -53,7 +57,7 @@ export default function Login() {
                 <div>
                     <h1 className="text-3xl font-bold text-center text-gray-900">Eventos Igreja</h1>
                     <h2 className="mt-6 text-center text-2xl font-extrabold text-gray-900">
-                        Entrar na sua conta
+                        Entre na sua conta
                     </h2>
                 </div>
 

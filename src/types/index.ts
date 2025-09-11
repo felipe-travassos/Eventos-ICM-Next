@@ -69,3 +69,75 @@ export interface EventCreate {
     createdAt: FieldValue;
     updatedAt: FieldValue;
 }
+
+//Interfaces de Pagamentos
+export interface PaymentData {
+    registrationId: string;
+    eventId: string;
+    amount: number;
+    description: string;
+    qrCode?: string;
+    qrCodeBase64?: string;
+    ticketUrl?: string;
+    paymentId?: string;
+}
+
+// Adicione ao seu arquivo types.ts
+import { User as FirebaseUser } from 'firebase/auth';
+
+export interface User {
+    id: string;
+    uid: string;
+    churchId: string;
+    cpf: string;
+    name: string;
+    email: string;
+    phone: string;
+    role: UserRole;
+    createdAt: Date;
+    updatedAt: Date;
+    churchName?: string;
+}
+
+export interface Church {
+    id: string;
+    name: string;
+    address?: string;
+    pastorId?: string;
+    pastorName?: string;
+    createdAt?: Date;
+    updatedAt?: Date;
+}
+
+export type UserRole = 'membro' | 'secretario_local' | 'pastor' | 'secretario_regional';
+
+export interface AuthContextType {
+    currentUser: FirebaseUser | null;
+    userData: User | null;
+    loading: boolean;
+    login: (email: string, password: string) => Promise<void>;
+    register: (email: string, password: string, name: string) => Promise<void>;
+    logout: () => Promise<void>;
+    resetPassword: (email: string) => Promise<void>;
+}
+
+export interface EventCardProps {
+    event: Event;
+    currentUser: FirebaseUser | null;
+    userRegistrations: EventRegistration[];
+    loadingRegistrations: boolean;
+    registeringEventId: string | null;
+    isProfileComplete: boolean;
+    onSubscribe: (eventId: string) => void;
+    onLogin: () => void;
+}
+
+// Tipo para dados de data do Firebase
+export interface FirebaseTimestamp {
+    seconds: number;
+    nanoseconds: number;
+    toDate: () => Date;
+}
+
+// Tipo para dados que podem vir do Firebase
+export type MaybeFirebaseDate = Date | string | FirebaseTimestamp | null | undefined;

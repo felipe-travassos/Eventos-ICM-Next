@@ -1,3 +1,4 @@
+//src/components/events/eventCard.tsx
 'use client';
 
 import React, { useState } from 'react';
@@ -90,6 +91,7 @@ const EventCard: React.FC<EventCardProps> = ({ event, showRegistration }) => {
                         </svg>
                         {event.location}
                     </p>
+                    <p className="text-gray-600">Valor: R$ {event.price.toFixed(2)}</p>
                 </div>
 
                 <p className="text-gray-700 mb-4 line-clamp-3">{event.description}</p>

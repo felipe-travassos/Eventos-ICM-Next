@@ -1,15 +1,11 @@
-import type { Metadata } from 'next';
+'use client';
+
 import { Inter } from 'next/font/google';
 import { AuthProvider } from '@/contexts/AuthContext';
 import './globals.css';
-import Layout from '@/components/layout/Layout';
+import Navbar from '@/components/layout/Navbar';
 
 const inter = Inter({ subsets: ['latin'] });
-
-export const metadata: Metadata = {
-  title: 'Eventos ICM',
-  description: 'Sistema de gerenciamento de eventos da igreja',
-};
 
 export default function RootLayout({
   children,
@@ -17,12 +13,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" className="light">
+      <head>
+        <title>Eventos ICM</title>
+        <meta name="description" content="Sistema de gerenciamento de eventos da igreja" />
+      </head>
       <body className={inter.className}>
         <AuthProvider>
-          <Layout>
+          <Navbar />
+          <main className="pt-16 min-h-screen bg-gray-50"> {/* Adicionado bg-gray-50 */}
             {children}
-          </Layout>
+          </main>
         </AuthProvider>
       </body>
     </html>

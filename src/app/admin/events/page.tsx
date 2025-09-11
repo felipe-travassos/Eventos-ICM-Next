@@ -15,6 +15,7 @@ export default function AdminEvents() {
     const [description, setDescription] = useState('');
     const [date, setDate] = useState('');
     const [time, setTime] = useState('');
+    const [price, setPrice] = useState('');
     const [location, setLocation] = useState('');
     const [maxParticipants, setMaxParticipants] = useState('');
     const [image, setImage] = useState<File | null>(null);
@@ -91,6 +92,7 @@ export default function AdminEvents() {
                     date: eventDateTime,
                     location,
                     maxParticipants: maxParticipants ? parseInt(maxParticipants) : null,
+                    price: price ? parseFloat(price) : 0,
                     imageURL: imageURL || editingEvent.imageURL
                 });
 
@@ -103,6 +105,7 @@ export default function AdminEvents() {
                     date: eventDateTime,
                     location,
                     maxParticipants: maxParticipants ? parseInt(maxParticipants) : null,
+                    price: price ? parseFloat(price) : 0,
                     currentParticipants: 0,
                     status: 'active',
                     imageURL,
@@ -189,6 +192,7 @@ export default function AdminEvents() {
         setTime(event.date.toTimeString().substring(0, 5));
         setLocation(event.location);
         setMaxParticipants(event.maxParticipants?.toString() || '');
+        setPrice(event.price?.toString() || '0');
         setImage(null);
         setShowForm(true);
     };
@@ -283,6 +287,7 @@ export default function AdminEvents() {
         setTime('');
         setLocation('');
         setMaxParticipants('');
+        setPrice('');
         setImage(null);
         setShowForm(false);
     };
@@ -404,6 +409,23 @@ export default function AdminEvents() {
                                     required
                                 />
                             </div>
+                        </div>
+
+                        <div className="mb-4">
+                            <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
+                                Valor da Inscrição (R$)
+                            </label>
+                            <input
+                                type="number"
+                                id="price"
+                                step="0.01"
+                                min="0"
+                                value={price}
+                                onChange={(e) => setPrice(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                placeholder="0.00"
+                                required
+                            />
                         </div>
 
                         <div className="mb-4">
@@ -529,6 +551,7 @@ export default function AdminEvents() {
                                     <p><strong>Data:</strong> {event.date.toLocaleDateString('pt-BR')}</p>
                                     <p><strong>Hora:</strong> {event.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
                                     <p><strong>Local:</strong> {event.location}</p>
+                                    <p><strong>Taxa de Inscrição:</strong> {`R$ ${event?.price}`}</p>
                                     <p><strong>Inscrições:</strong> {event.currentParticipants}{event.maxParticipants ? `/${event.maxParticipants}` : ''}</p>
 
                                     {event.maxParticipants && (
