@@ -270,7 +270,7 @@ export default function HomePage() {
       )} */}
 
       {/* Header Hero */}
-      <header className="bg-gradient-to-r from-blue-600 to-purple-700 text-white py-12 rounded-lg mx-20">
+      <header className="bg-gradient-to-r from-blue-600 to-purple-700 text-white py-12 rounded-lg mx-2">
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-6xl font-bold mb-6">Eventos da Igreja</h1>
           <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">
@@ -336,7 +336,7 @@ export default function HomePage() {
           </div>
         ) : (
           <>
-            {/* Carrossel de eventos - CORRIGIDO */}
+            {/* Carrossel de eventos */}
             <div className="relative overflow-hidden rounded-lg shadow-xl">
               <div
                 ref={carouselRef}
@@ -359,13 +359,13 @@ export default function HomePage() {
                 <>
                   <button
                     onClick={prevSlide}
-                    className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 rounded-full p-2 shadow-lg transition duration-200"
+                    className="absolute left-4 top-1/3 transform -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 rounded-full p-2 shadow-lg transition duration-200"
                   >
                     <ChevronLeftIcon />
                   </button>
                   <button
                     onClick={nextSlide}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 rounded-full p-2 shadow-lg transition duration-200"
+                    className="absolute right-4 top-1/3 transform -translate-y-1/2 bg-white/80 hover:bg-white text-gray-800 rounded-full p-2 shadow-lg transition duration-200"
                   >
                     <ChevronRightIcon />
                   </button>

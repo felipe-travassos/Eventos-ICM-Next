@@ -76,7 +76,7 @@ const EventCard: React.FC<EventCardProps> = ({
     return (
         <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow duration-200">
             {event.imageURL && !imageError ? (
-                <div className="relative h-48 w-full">
+                <div className="relative h-40 w-full">
                     <Image
                         src={event.imageURL}
                         alt={event.title}
@@ -118,6 +118,7 @@ const EventCard: React.FC<EventCardProps> = ({
                 </div>
 
                 <p className="text-gray-700 mb-4 line-clamp-3">{event.description}</p>
+
 
                 {showRegistration && (
                     <div className="mt-4">
