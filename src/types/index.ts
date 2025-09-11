@@ -64,7 +64,7 @@ export interface EventCreate {
     price: number;
     churchId: string;
     churchName: string;
-    status: 'active' | 'inactive' | 'cancelled';
+    status: 'active' | 'inactive' | 'canceled';
     imageURL?: string;
     createdAt: FieldValue;
     updatedAt: FieldValue;
@@ -132,12 +132,20 @@ export interface EventCardProps {
     onLogin: () => void;
 }
 
+
+
 // Tipo para dados de data do Firebase
 export interface FirebaseTimestamp {
     seconds: number;
     nanoseconds: number;
     toDate: () => Date;
 }
+
+export interface FirebaseError {
+    code: string;
+    message: string;
+};
+
 
 // Tipo para dados que podem vir do Firebase
 export type MaybeFirebaseDate = Date | string | FirebaseTimestamp | null | undefined;

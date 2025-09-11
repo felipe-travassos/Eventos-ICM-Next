@@ -3,36 +3,59 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { Event } from '@/types';
+import { useRouter } from 'next/navigation';
+import { Event, EventRegistration } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { registerForEvent } from '@/lib/firebase/events';
 
 interface EventCardProps {
     event: Event;
-    showRegistration: boolean;
+    showRegistration?: boolean;
+    onSubscribe?: (eventId: string) => Promise<void>;
+    isSubscribing?: boolean;
+    userRegistrations?: EventRegistration[];
 }
 
-const EventCard: React.FC<EventCardProps> = ({ event, showRegistration }) => {
-    const [isRegistering, setIsRegistering] = useState(false);
+const EventCard: React.FC<EventCardProps> = ({
+    event,
+    showRegistration = true,
+    onSubscribe,
+    isSubscribing = false,
+    userRegistrations = []
+}) => {
     const [registrationStatus, setRegistrationStatus] = useState<'idle' | 'success' | 'error'>('idle');
-    const [imageError, setImageError] = useState(false); // Novo estado para erro de imagem
+    const [registrationMessage, setRegistrationMessage] = useState('');
+    const [imageError, setImageError] = useState(false);
     const { userData } = useAuth();
+    const router = useRouter();
+
+    // Verificar se o usuário já está inscrito neste evento
+    const isUserRegistered = userRegistrations.some(reg => reg.eventId === event.id);
 
     const handleRegistration = async () => {
-        if (!userData) return;
+        if (!userData) {
+            // Se o usuário não está logado, redirecionar para login
+            router.push('/login?redirect=' + encodeURIComponent(window.location.pathname));
+            return;
+        }
 
-        setIsRegistering(true);
+        if (!onSubscribe) return;
+
         setRegistrationStatus('idle');
+        setRegistrationMessage('');
 
         try {
-            await registerForEvent(event.id, userData.id);
+            await onSubscribe(event.id);
             setRegistrationStatus('success');
+            setRegistrationMessage('Inscrição realizada com sucesso!');
         } catch (error: any) {
             console.error('Erro ao se inscrever no evento:', error);
             setRegistrationStatus('error');
-        } finally {
-            setIsRegistering(false);
+            setRegistrationMessage(error.message || 'Erro ao realizar inscrição. Tente novamente.');
         }
+    };
+
+    const handleLoginRedirect = () => {
+        router.push('/login?redirect=' + encodeURIComponent(window.location.pathname));
     };
 
     const formatDate = (date: Date) => {
@@ -45,7 +68,6 @@ const EventCard: React.FC<EventCardProps> = ({ event, showRegistration }) => {
         }).format(date);
     };
 
-    // Função para tratar erro no carregamento da imagem
     const handleImageError = () => {
         console.error('Erro ao carregar imagem:', event.imageURL);
         setImageError(true);
@@ -61,8 +83,9 @@ const EventCard: React.FC<EventCardProps> = ({ event, showRegistration }) => {
                         fill
                         className="object-cover"
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        onError={handleImageError} // Adicionar handler de erro
+                        onError={handleImageError}
                         priority={false}
+                        unoptimized={true}
                     />
                 </div>
             ) : (
@@ -98,42 +121,63 @@ const EventCard: React.FC<EventCardProps> = ({ event, showRegistration }) => {
 
                 {showRegistration && (
                     <div className="mt-4">
-                        {registrationStatus === 'success' ? (
-                            <div className="bg-green-100 text-green-800 p-2 rounded text-center">
-                                <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                                Inscrição realizada com sucesso!
-                            </div>
-                        ) : registrationStatus === 'error' ? (
-                            <div className="bg-red-100 text-red-800 p-2 rounded text-center">
-                                <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                                Erro ao realizar inscrição. Tente novamente.
-                            </div>
+                        {userData ? (
+                            // USUÁRIO LOGADO - Mostrar botão de inscrição normal
+                            isUserRegistered ? (
+                                <div className="bg-green-100 text-green-800 p-2 rounded text-center">
+                                    <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    Você já está inscrito neste evento!
+                                </div>
+                            ) : registrationStatus === 'success' ? (
+                                <div className="bg-green-100 text-green-800 p-2 rounded text-center">
+                                    <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    {registrationMessage}
+                                </div>
+                            ) : registrationStatus === 'error' ? (
+                                <div className="bg-red-100 text-red-800 p-2 rounded text-center">
+                                    <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                    {registrationMessage}
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={handleRegistration}
+                                    disabled={isSubscribing}
+                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded disabled:opacity-50 flex items-center justify-center"
+                                >
+                                    {isSubscribing ? (
+                                        <>
+                                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Inscrevendo...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                            </svg>
+                                            Inscrever-se
+                                        </>
+                                    )}
+                                </button>
+                            )
                         ) : (
+                            // USUÁRIO NÃO LOGADO - Mostrar botão para fazer login
                             <button
-                                onClick={handleRegistration}
-                                disabled={isRegistering}
-                                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded disabled:opacity-50 flex items-center justify-center"
+                                onClick={handleLoginRedirect}
+                                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center justify-center"
                             >
-                                {isRegistering ? (
-                                    <>
-                                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        Inscrevendo...
-                                    </>
-                                ) : (
-                                    <>
-                                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                                        </svg>
-                                        Inscrever-se
-                                    </>
-                                )}
+                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                                </svg>
+                                Fazer login para se inscrever
                             </button>
                         )}
                     </div>

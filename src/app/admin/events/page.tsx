@@ -1,14 +1,19 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
+
 import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { db, storage } from '@/lib/firebase/config';
+import { db } from '@/lib/firebase/config';
 import { Event } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { uploadEventImage } from '@/lib/firebase/storage';
+import {
+    uploadEventImage,
+    deleteImage,
+    extractImagePathFromURL
+} from '@/lib/firebase/storage';
 
 export default function AdminEvents() {
     const [title, setTitle] = useState('');
@@ -73,6 +78,7 @@ export default function AdminEvents() {
 
             if (image) {
                 try {
+                    // Use a função do storage.ts
                     imageURL = await uploadEventImage(image, userData.id);
                     console.log('Imagem salva com URL:', imageURL);
                 } catch (error: any) {
@@ -153,7 +159,7 @@ export default function AdminEvents() {
 
             setEvents(events.map(event =>
                 event.id === eventId
-                    ? { ...event, status: 'ended' as const }
+                    ? { ...event, status: 'canceled' as const }
                     : event
             ));
 
@@ -206,13 +212,11 @@ export default function AdminEvents() {
 
             if (eventToDelete?.imageURL) {
                 try {
-                    // Extrair o path da imagem da URL
+                    // Extrair o path da imagem da URL usando a função do storage.ts
                     const imagePath = extractImagePathFromURL(eventToDelete.imageURL);
                     if (imagePath) {
-                        // Criar referência para a imagem no Storage
-                        const imageRef = ref(storage, imagePath);
-                        // Deletar a imagem do Storage
-                        await deleteObject(imageRef);
+                        // Deletar a imagem do Storage usando a função do storage.ts
+                        await deleteImage(imagePath);
                         console.log('Imagem excluída do Storage:', imagePath);
                     }
                 } catch (storageError) {
@@ -237,22 +241,6 @@ export default function AdminEvents() {
         } catch (error) {
             console.error('Erro ao excluir evento:', error);
             alert('Erro ao excluir evento. Tente novamente.');
-        }
-    };
-
-    // Função auxiliar para extrair o path da imagem da URL
-    const extractImagePathFromURL = (url: string): string | null => {
-        try {
-            // A URL do Storage geralmente contém '/o/' seguido do path e '?alt=media'
-            const match = url.match(/\/o\/(.+?)\?alt=media/);
-            if (match && match[1]) {
-                // Decodificar URL encoding (espaços como %20, etc)
-                return decodeURIComponent(match[1]);
-            }
-            return null;
-        } catch (error) {
-            console.error('Erro ao extrair path da URL:', error);
-            return null;
         }
     };
 
@@ -302,7 +290,7 @@ export default function AdminEvents() {
     };
 
     const activeEvents = events.filter(event => event.status === 'active');
-    const endedEvents = events.filter(event => event.status === 'ended');
+    const endedEvents = events.filter(event => event.status === 'canceled');
 
     if (!userData || !['pastor', 'secretario_regional', 'secretario_local'].includes(userData.role)) {
         return (
@@ -457,11 +445,19 @@ export default function AdminEvents() {
                             {editingEvent?.imageURL && (
                                 <div className="mt-2">
                                     <p className="text-sm text-gray-600">Imagem atual:</p>
-                                    <img
+                                    <div className="relative h-20 w-20 mt-1">
+                                        <Image
+                                            src={editingEvent.imageURL}
+                                            alt="Imagem atual do evento"
+                                            fill
+                                            className="object-contain rounded"
+                                        />
+                                    </div>
+                                    {/* <img
                                         src={editingEvent.imageURL}
                                         alt="Imagem atual do evento"
                                         className="h-20 object-cover rounded mt-1"
-                                    />
+                                    /> */}
                                 </div>
                             )}
                         </div>
@@ -530,11 +526,17 @@ export default function AdminEvents() {
                         {(activeTab === 'active' ? activeEvents : endedEvents).map((event) => (
                             <div key={event.id} className="bg-white p-4 rounded-lg shadow border border-gray-200">
                                 {event.imageURL && (
-                                    <img
-                                        src={event.imageURL}
-                                        alt={event.title}
-                                        className="w-full h-40 object-cover rounded-md mb-3"
-                                    />
+                                    <div className="relative w-full h-40 rounded-md mb-3 overflow-hidden">
+                                        <Image
+                                            src={event.imageURL}
+                                            alt={event.title}
+                                            fill
+                                            priority={false}
+                                            unoptimized={true}
+                                            className="object-cover"
+                                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                        />
+                                    </div>
                                 )}
 
                                 <div className="flex justify-between items-start mb-3">

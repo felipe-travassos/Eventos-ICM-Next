@@ -64,6 +64,22 @@ export const uploadProfileImage = async (file: File, userId: string): Promise<st
     }
 };
 
+// Extrair path da imagem a partir da URL
+export const extractImagePathFromURL = (url: string): string | null => {
+    try {
+        // A URL do Storage geralmente contém '/o/' seguido do path e '?alt=media'
+        const match = url.match(/\/o\/(.+?)\?alt=media/);
+        if (match && match[1]) {
+            // Decodificar URL encoding (espaços como %20, etc)
+            return decodeURIComponent(match[1]);
+        }
+        return null;
+    } catch (error) {
+        console.error('Erro ao extrair path da URL:', error);
+        return null;
+    }
+};
+
 // Deletar imagem
 export const deleteImage = async (filePath: string): Promise<void> => {
     try {

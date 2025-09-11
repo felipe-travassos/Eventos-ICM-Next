@@ -14,6 +14,9 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase/config';
 import { User, UserRole } from '@/types';
 
+import { useRouter } from 'next/navigation';
+
+
 interface AuthContextType {
     currentUser: FirebaseUser | null;
     userData: User | null;
@@ -34,6 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
     const [userData, setUserData] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
+    const router = useRouter();
 
     const login = async (email: string, password: string) => {
         await signInWithEmailAndPassword(auth, email, password);
@@ -64,6 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await signOut(auth);
             setCurrentUser(null);
             setUserData(null);
+            router.push('/');
         } catch (error) {
             console.error('Erro ao fazer logout:', error);
         }
