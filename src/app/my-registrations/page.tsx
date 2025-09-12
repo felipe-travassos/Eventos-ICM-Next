@@ -13,6 +13,8 @@ import PaymentModal from '@/components/PaymentModal'; // Importação adicionada
 
 import { EventRegistration, Event, Church } from '@/types';
 import Link from 'next/link';
+import { db } from '@/lib/firebase/config';
+import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 
 // Interface para dados de pagamento
 interface PaymentData {
@@ -111,41 +113,74 @@ export default function MyRegistrationsPage() {
      * Função para simular criação de pagamento PIX
      * Você precisa implementar a integração real com Mercado Pago
      */
-    const createPixPayment = async (paymentRequest: any): Promise<any> => {
-        // Implemente a integração real com a API do Mercado Pago aqui
-        console.log('Simulando pagamento PIX:', paymentRequest);
+    // const createPixPayment = async (paymentRequest: any): Promise<any> => {
+    //     // Implemente a integração real com a API do Mercado Pago aqui
+    //     console.log('Simulando pagamento PIX:', paymentRequest);
 
-        // Retorno simulado para teste
-        return {
-            success: true,
-            qrCode: '00020126580014BR.GOV.BCB.PIX0136...',
-            qrCodeBase64: 'iVBORw0KGgoAAAANSUhEUgAAA...',
-            ticketUrl: 'https://mercadopago.com.br/ticket/123',
-            paymentId: 'mp_123456789'
-        };
-    };
+    //     // Retorno simulado para teste
+    //     return {
+    //         success: true,
+    //         qrCode: '00020126580014BR.GOV.BCB.PIX0136...',
+    //         qrCodeBase64: 'iVBORw0KGgoAAAANSUhEUgAAA...',
+    //         ticketUrl: 'https://mercadopago.com.br/ticket/123',
+    //         paymentId: 'mp_123456789'
+    //     };
+    // };
+    const createPixPayment = async (paymentRequest: any) => {
+        const res = await fetch('/api/pix/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(paymentRequest),
+        })
+        return res.json()
+    }
 
     /**
      * Função para simular verificação de status
      */
-    const getPaymentStatus = async (paymentId: string): Promise<any> => {
-        // Implemente a verificação real do status do pagamento
-        console.log('Verificando status do pagamento:', paymentId);
-        return { status: 'approved' };
-    };
+    // const getPaymentStatus = async (paymentId: string): Promise<any> => {
+    //     // Implemente a verificação real do status do pagamento
+    //     console.log('Verificando status do pagamento:', paymentId);
+    //     return { status: 'approved' };
+    // };
+    const getPaymentStatus = async (paymentId: string, registrationId: string) => {
+        try {
+            const res = await fetch(`/api/pix/status?paymentId=${paymentId}&registrationId=${registrationId}`)
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`)
+            }
+            return await res.json()
+        } catch (error) {
+            console.error('Erro ao verificar status:', error)
+            throw error
+        }
+    }
+
 
     /**
      * Função para atualizar status no Firebase
      */
     const updatePaymentStatus = async (registrationId: string, status: string): Promise<void> => {
-        // Implemente a atualização no Firebase
-        console.log('Atualizando status:', registrationId, status);
-    };
+        try {
+            // Atualizar no Firestore
+            const registrationRef = doc(db, 'registrations', registrationId)
+            await updateDoc(registrationRef, {
+                paymentStatus: status,
+                updatedAt: serverTimestamp()
+            })
+            console.log('Status atualizado com sucesso:', registrationId, status)
+        } catch (error) {
+            console.error('Erro ao atualizar status:', error)
+            throw error
+        }
+    }
 
     /**
      * Função para iniciar o processo de pagamento PIX
      */
     const handlePayment = async (registration: RegistrationWithDetails) => {
+
+        console.log('Iniciando pagamento para:', registration.id)
         if (!registration.event) return;
 
         setProcessingPayment(registration.id);
@@ -171,20 +206,24 @@ export default function MyRegistrationsPage() {
 
             const paymentResult = await createPixPayment(paymentRequest);
 
-            if (paymentResult.success && paymentResult.qrCode) {
+
+            console.log('Resultado do pagamento:', paymentResult)
+
+            if (paymentResult.id && paymentResult.qr_code) {
                 setPaymentData({
                     registrationId: registration.id,
                     eventId: registration.eventId,
                     amount,
                     description: paymentRequest.description,
-                    qrCode: paymentResult.qrCode,
-                    qrCodeBase64: paymentResult.qrCodeBase64,
-                    ticketUrl: paymentResult.ticketUrl,
-                    paymentId: paymentResult.paymentId,
-                });
-                setShowPaymentModal(true);
+                    qrCode: paymentResult.qr_code,
+                    qrCodeBase64: paymentResult.qr_code_base64,
+                    ticketUrl: paymentResult.ticket_url,
+                    paymentId: paymentResult.id,
+                })
+                setShowPaymentModal(true)
             } else {
-                alert('Erro ao processar pagamento. Tente novamente.');
+                console.error('Erro no resultado:', paymentResult)
+                alert('Erro ao processar pagamento. Tente novamente.')
             }
         } catch (error) {
             console.error('Erro no pagamento:', error);
@@ -198,10 +237,12 @@ export default function MyRegistrationsPage() {
      * Função para verificar status do pagamento
      */
     const checkPaymentStatus = async () => {
+
+        console.log('Verificando status:', paymentData)
         if (!paymentData?.paymentId || !paymentData.registrationId) return;
 
         try {
-            const status = await getPaymentStatus(paymentData.paymentId);
+            const status = await getPaymentStatus(paymentData.paymentId, paymentData.registrationId);
             if (status && status.status === 'approved') {
                 await updatePaymentStatus(paymentData.registrationId, 'paid');
                 setRegistrations(prev => prev.map(reg =>
