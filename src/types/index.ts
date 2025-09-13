@@ -5,6 +5,8 @@ export interface EventRegistration {
     id: string;
     eventId: string;
     userId: string;
+    userType: 'user' | 'senior'; // Novo campo
+    seniorId?: string; // ID do senior se for inscrição de idoso
     userName: string;
     userEmail: string;
     userPhone: string;
@@ -15,6 +17,9 @@ export interface EventRegistration {
     status: 'pending' | 'confirmed' | 'cancelled';
     paymentStatus: 'pending' | 'paid' | 'refunded';
     paymentDate?: Date;
+    registeredBy: string; // ID do secretário
+    registeredByName: string;
+    registrationType: 'self' | 'secretary';
     paymentId: string;
     createdAt: Date;
     updatedAt: Date;
@@ -152,3 +157,19 @@ export interface FirebaseError {
 
 // Tipo para dados que podem vir do Firebase
 export type MaybeFirebaseDate = Date | string | FirebaseTimestamp | null | undefined;
+
+//Interface de Idosos
+interface Senior {
+    id: string;
+    name: string;
+    email?: string;
+    phone: string;
+    cpf: string;
+    birthDate: string;
+    church: string;
+    pastor: string;
+    createdBy: string; // ID do secretário que cadastrou
+    createdAt: Date;
+    updatedAt: Date;
+    lastEventRegistered?: string; // ID do último evento
+}

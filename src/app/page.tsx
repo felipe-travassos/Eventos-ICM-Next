@@ -1,3 +1,4 @@
+// src/app/page.tsx
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
@@ -13,6 +14,8 @@ import {
   registerForEvent
 } from '@/lib/firebase/events';
 import EventCard from '@/components/events/EventCard';
+
+import SecretaryPaymentFlow from '@/components/SecretaryPaymentFlow';
 
 // Componentes de ícones (movidos para cima)
 const ChevronLeftIcon = () => (
@@ -83,7 +86,7 @@ const formatTimeSafe = (date: any): string => {
 };
 
 export default function HomePage() {
-  
+
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -91,6 +94,9 @@ export default function HomePage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [userRegistrations, setUserRegistrations] = useState<EventRegistration[]>([]);
   const [loadingRegistrations, setLoadingRegistrations] = useState(false);
+
+  const [showSecretaryFlow, setShowSecretaryFlow] = useState(false);
+
 
   const carouselRef = useRef<HTMLDivElement>(null);
   const { userData, currentUser, loading: authLoading } = useAuth();
@@ -270,6 +276,7 @@ export default function HomePage() {
       )} */}
 
       {/* Header Hero */}
+      {/* Header Hero */}
       <header className="bg-gradient-to-r from-blue-600 to-purple-700 text-white py-12 rounded-lg mx-2">
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-6xl font-bold mb-6">Eventos da Igreja</h1>
@@ -278,11 +285,11 @@ export default function HomePage() {
           </p>
 
           {!currentUser ? (
-            <div className="space-x-4">
-              <Link href="/login" className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition duration-200">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link href="/login" className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition duration-200 text-center">
                 Fazer Login
               </Link>
-              <Link href="/register" className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition duration-200">
+              <Link href="/register" className="border-2 border-white text-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition duration-200 text-center">
                 Criar Conta
               </Link>
             </div>
@@ -297,20 +304,30 @@ export default function HomePage() {
                 </div>
               )}
 
-              <div className="space-x-4">
-                <Link href="/my-registrations" className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition duration-200">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link href="/my-registrations" className="border-2 border-white text-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition duration-200 text-center">
                   Minhas Inscrições
                 </Link>
+
                 {(userData?.role === 'secretario_regional' || userData?.role === 'pastor' || userData?.role === 'secretario_local') && (
-                  <Link href="/admin/events" className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition duration-200">
-                    Gerenciar Eventos
-                  </Link>
+                  <>
+                    <Link href="/admin/events" className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition duration-200 text-center">
+                      Gerenciar Eventos
+                    </Link>
+                    <button
+                      onClick={() => setShowSecretaryFlow(true)}
+                      className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition duration-200 text-center"
+                    >
+                      👨‍💼 Área do Secretário
+                    </button>
+                  </>
                 )}
               </div>
             </div>
           )}
         </div>
       </header>
+
 
       {/* Seção de eventos */}
       <section className="py-12 container mx-auto px-4">
@@ -418,15 +435,17 @@ export default function HomePage() {
                 </div>
               )}
 
-              <div className="space-x-4">
-                <Link href="/my-registrations" className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition duration-200">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link href="/my-registrations" className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition duration-200 text-center">
                   Minhas Inscrições
                 </Link>
-                <Link href="/profile" className="border-2 border-blue-600 text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-blue-600 hover:text-white transition duration-200">
+
+                <Link href="/profile" className="border-2 border-blue-600 text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-600 hover:text-white transition duration-200 text-center">
                   Meu Perfil
                 </Link>
+
                 {(userData?.role === 'secretario_regional' || userData?.role === 'pastor' || userData?.role === 'secretario_local') && (
-                  <Link href="/admin/events" className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition duration-200">
+                  <Link href="/admin/events" className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition duration-200 text-center">
                     Gerenciar Eventos
                   </Link>
                 )}
@@ -435,6 +454,33 @@ export default function HomePage() {
           )}
         </div>
       </section>
-    </div>
+      {/* Modal da Área do Secretário */}
+      {
+        showSecretaryFlow && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-blue-800">
+                    👨‍💼 Área do Secretário - Inscrição de Idosos
+                  </h2>
+                  <button
+                    onClick={() => setShowSecretaryFlow(false)}
+                    className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+                  >
+                    Fechar
+                  </button>
+                </div>
+
+                <SecretaryPaymentFlow
+                  events={events}
+                  onComplete={() => setShowSecretaryFlow(false)}
+                />
+              </div>
+            </div>
+          </div>
+        )
+      }
+    </div >
   );
 }
