@@ -10,12 +10,15 @@ export interface EventRegistration {
     userPhone: string;
     userChurch: string;
     churchName: string;
+    userCpf: string;
     pastorName: string;
     status: 'pending' | 'confirmed' | 'cancelled';
     paymentStatus: 'pending' | 'paid' | 'refunded';
     paymentDate?: Date;
+    paymentId: string;
     createdAt: Date;
     updatedAt: Date;
+
 }
 
 

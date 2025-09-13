@@ -121,54 +121,26 @@ export const getEventById = async (eventId: string): Promise<Event | null> => {
  * @param eventId - ID do evento relacionado
  * @returns Promise<{success: boolean, message: string}> - Resultado da operação
  */
-export const deleteEventRegistration = async (
-    registrationId: string,
-    eventId: string
-): Promise<{ success: boolean; message: string }> => {
+// Deixe apenas a exclusão do Firestore, o cancelamento é feito separadamente
+export const deleteEventRegistration = async (registrationId: string, eventId: string) => {
     try {
-        // Buscar a inscrição para verificar o status de pagamento
-        const registrationDoc = await getDoc(doc(db, 'registrations', registrationId));
+        console.log('Excluindo inscrição do Firestore:', registrationId);
 
-        if (!registrationDoc.exists()) {
-            return { success: false, message: 'Inscrição não encontrada' };
-        }
-
-        const registrationData = registrationDoc.data();
-
-        // Verificar se o pagamento já foi realizado
-        if (registrationData.paymentStatus === 'paid') {
-            return {
-                success: false,
-                message: 'Não é possível excluir inscrições já pagas'
-            };
-        }
-
-        // Excluir permanentemente a inscrição
         await deleteDoc(doc(db, 'registrations', registrationId));
+        console.log('Inscrição excluída com sucesso');
 
-        // Decrementar o contador de participantes do evento
-        const eventDoc = await getDoc(doc(db, 'events', eventId));
-        if (eventDoc.exists()) {
-            const eventData = eventDoc.data();
-            const currentParticipants = Number(eventData.currentParticipants) || 0;
-
-            await updateDoc(doc(db, 'events', eventId), {
-                currentParticipants: Math.max(0, currentParticipants - 1),
-                updatedAt: new Date()
-            });
-        }
-
-        console.log(`Inscrição ${registrationId} excluída permanentemente`);
-        return { success: true, message: 'Inscrição excluída com sucesso' };
-
+        return {
+            success: true,
+            message: 'Inscrição excluída com sucesso'
+        };
     } catch (error: any) {
         console.error('Erro ao excluir inscrição:', error);
         return {
             success: false,
-            message: 'Erro ao excluir inscrição'
+            message: 'Erro ao excluir inscrição: ' + error.message
         };
     }
-};
+}
 
 /**
  * Busca todos os eventos e sincroniza automaticamente os contadores de participantes

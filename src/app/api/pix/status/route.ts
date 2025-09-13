@@ -1,16 +1,7 @@
+// src/app/api/pix/status/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import axios from 'axios'
-import * as admin from 'firebase-admin'
-
-if (!admin.apps.length) {
-    admin.initializeApp({
-        credential: admin.credential.cert({
-            projectId: process.env.FIREBASE_PROJECT_ID,
-            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-            privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-        }),
-    })
-}
+import admin, { adminDb } from '@/lib/firebase/admin'
 
 export async function GET(request: NextRequest) {
     try {
@@ -32,39 +23,126 @@ export async function GET(request: NextRequest) {
             `https://api.mercadopago.com/v1/payments/${paymentId}`,
             {
                 headers: {
-                    Authorization: `Bearer ${process.env.MERCADO_PAGO_TOKEN}`,
+                    Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
                     'Content-Type': 'application/json'
                 }
             }
         )
 
-        const status = mpRes.data.status
-        console.log('Status do pagamento:', status)
+        const paymentData = mpRes.data;
+        const status = paymentData.status;
 
-        // Atualiza no Firestore só se aprovado
-        if (status === 'approved') {
-            await admin.firestore()
-                .collection('registrations')
-                .doc(registrationId)
-                .update({
-                    paymentStatus: 'paid',
-                    paidAt: admin.firestore.FieldValue.serverTimestamp()
-                })
+        console.log('✅ Status do pagamento:', status)
+        console.log('📊 Dados completos do pagamento:', {
+            id: paymentData.id,
+            status: paymentData.status,
+            status_detail: paymentData.status_detail,
+            amount: paymentData.transaction_amount,
+            payer: {
+                email: paymentData.payer?.email,
+                name: `${paymentData.payer?.first_name || ''} ${paymentData.payer?.last_name || ''}`.trim(),
+                identification: paymentData.payer?.identification,
+                phone: paymentData.payer?.phone
+            },
+            items: paymentData.additional_info?.items,
+            metadata: paymentData.metadata
+        })
+
+        // Atualiza no Firestore com todos os dados relevantes
+        const updateData: any = {
+            paymentStatus: status,
+            lastStatusCheck: admin.firestore.FieldValue.serverTimestamp(),
+            mercadoPagoStatus: status,
+            statusDetail: paymentData.status_detail
         }
 
-        return NextResponse.json({ status }, { status: 200 })
+        // Se foi aprovado, adiciona dados específicos
+        if (status === 'approved') {
+            updateData.paidAt = admin.firestore.FieldValue.serverTimestamp();
+            updateData.approvedAmount = paymentData.transaction_amount;
+            updateData.netReceivedAmount = paymentData.transaction_details?.net_received_amount;
+            updateData.installments = paymentData.installments;
+
+            // Salva dados do pagador do Mercado Pago (para conciliação)
+            if (paymentData.payer) {
+                updateData.mercadoPagoPayer = {
+                    id: paymentData.payer.id,
+                    email: paymentData.payer.email,
+                    firstName: paymentData.payer.first_name,
+                    lastName: paymentData.payer.last_name,
+                    identification: paymentData.payer.identification,
+                    phone: paymentData.payer.phone
+                }
+            }
+
+            // Salva dados dos itens
+            if (paymentData.additional_info?.items) {
+                updateData.mercadoPagoItems = paymentData.additional_info.items;
+            }
+        }
+
+        // Se foi rejeitado ou cancelado
+        if (status === 'rejected' || status === 'cancelled') {
+            updateData.statusDetail = paymentData.status_detail;
+            updateData.paymentError = paymentData.status_detail;
+        }
+
+        await adminDb
+            .collection('registrations')
+            .doc(registrationId)
+            .update(updateData)
+
+        // Log de atualização
+        console.log('📝 Firestore atualizado para registro:', registrationId, {
+            status: status,
+            updatedFields: Object.keys(updateData)
+        })
+
+        return NextResponse.json({
+            status,
+            status_detail: paymentData.status_detail,
+            transaction_amount: paymentData.transaction_amount,
+            payer: paymentData.payer ? {
+                email: paymentData.payer.email,
+                name: `${paymentData.payer.first_name || ''} ${paymentData.payer.last_name || ''}`.trim(),
+                identification: paymentData.payer.identification,
+                phone: paymentData.payer.phone
+            } : null,
+            items: paymentData.additional_info?.items
+        }, { status: 200 })
+
     } catch (error: any) {
         console.error('❌ ERRO CONSULTANDO STATUS PIX:', {
             message: error.message,
             isAxiosError: error.isAxiosError,
             status: error.response?.status,
             responseData: error.response?.data,
+            url: error.config?.url
         })
+
+        // Tenta atualizar o status como erro no Firestore
+        try {
+            const registrationId = new URL(request.url).searchParams.get('registrationId');
+            if (registrationId) {
+                await adminDb
+                    .collection('registrations')
+                    .doc(registrationId)
+                    .update({
+                        lastStatusCheck: admin.firestore.FieldValue.serverTimestamp(),
+                        statusCheckError: error.message
+                    })
+            }
+        } catch (firestoreError) {
+            console.error('Erro ao atualizar status de erro no Firestore:', firestoreError);
+        }
 
         return NextResponse.json(
             {
                 error: 'Erro ao verificar status do Pix',
-                details: error.response?.data || error.message
+                details: error.response?.data || error.message,
+                ...(process.env.NODE_ENV === 'development' && {
+                    stack: error.stack
+                })
             },
             { status: 500 }
         )

@@ -28,6 +28,7 @@ export const updateProfileData = async (userId: string, data: {
   cpf?: string;
   phone?: string;
   churchId?: string;
+  
 }) => {
   try {
     await updateDoc(doc(db, 'users', userId), {
