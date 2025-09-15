@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
             // Dados do pagamento
             paymentId: body.paymentId,
             paymentStatus: 'pending',
+            status: 'pending',
 
             // Metadados
             registeredBy: body.secretaryId, // ID do secretário

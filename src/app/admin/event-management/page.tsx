@@ -1,12 +1,11 @@
 // app/admin/event-management/page.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { Event, EventRegistration } from '@/types';
-import Link from 'next/link';
 
 interface EventWithRegistrations extends Event {
     registrations: EventRegistration[];
@@ -15,6 +14,7 @@ interface EventWithRegistrations extends Event {
 }
 
 export default function EventManagementPage() {
+
     const [events, setEvents] = useState<EventWithRegistrations[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedEvent, setSelectedEvent] = useState<EventWithRegistrations | null>(null);
@@ -22,9 +22,146 @@ export default function EventManagementPage() {
     const [filters, setFilters] = useState({
         paymentStatus: 'all',
         churchName: '',
-        pastorName: ''
+        pastorName: '',
+        registrationStatus: 'all',
     });
+    const [approvalLoading, setApprovalLoading] = useState<string | null>(null);
+
     const { userData } = useAuth();
+
+    // Carregar eventos e inscrições
+    // ✅ useCallback para memoizar a função
+    const loadEventsWithRegistrations = useCallback(async () => {
+        if (!userData || !['pastor', 'secretario_regional'].includes(userData.role)) return;
+
+        try {
+            setLoading(true);
+            // Buscar todos os eventos
+            const eventsSnapshot = await getDocs(collection(db, 'events'));
+            const eventsData: EventWithRegistrations[] = [];
+
+            for (const eventDoc of eventsSnapshot.docs) {
+                const eventData = eventDoc.data();
+
+                // Criar objeto event com todas as propriedades obrigatórias
+                const event: EventWithRegistrations = {
+                    id: eventDoc.id,
+                    title: eventData.title || 'Evento sem título',
+                    description: eventData.description || '',
+                    date: eventData.date?.toDate() || new Date(),
+                    endDate: eventData.endDate?.toDate(),
+                    location: eventData.location || '',
+                    maxParticipants: Number(eventData.maxParticipants) || 0,
+                    currentParticipants: Number(eventData.currentParticipants) || 0,
+                    price: Number(eventData.price) || 0,
+                    churchId: eventData.churchId || '',
+                    churchName: eventData.churchName || '',
+                    status: eventData.status || 'active',
+                    createdAt: eventData.createdAt?.toDate() || new Date(),
+                    updatedAt: eventData.updatedAt?.toDate() || new Date(),
+                    imageURL: eventData.imageURL,
+                    createdBy: eventData.createdBy,
+                    registrations: [],
+                    paidCount: 0,
+                    pendingCount: 0
+                };
+
+                // Buscar inscrições para este evento
+                const registrationsQuery = query(
+                    collection(db, 'registrations'),
+                    where('eventId', '==', eventDoc.id)
+                );
+
+                const registrationsSnapshot = await getDocs(registrationsQuery);
+                const registrations: EventRegistration[] = [];
+
+                registrationsSnapshot.forEach((regDoc) => {
+                    const regData = regDoc.data();
+                    registrations.push({
+                        id: regDoc.id,
+                        eventId: regData.eventId,
+                        userId: regData.userId,
+                        userName: regData.userName,
+                        userEmail: regData.userEmail,
+                        userPhone: regData.userPhone,
+                        userChurch: regData.userChurch,
+                        churchName: regData.churchName,
+                        pastorName: regData.pastorName,
+                        status: regData.status,
+                        paymentStatus: regData.paymentStatus,
+                        paymentDate: regData.paymentDate?.toDate(),
+                        createdAt: regData.createdAt.toDate(),
+                        updatedAt: regData.updatedAt.toDate()
+                    } as EventRegistration);
+                });
+
+                event.registrations = registrations;
+                event.paidCount = registrations.filter(reg => reg.paymentStatus === 'paid').length;
+                event.pendingCount = registrations.filter(reg => reg.paymentStatus === 'pending').length;
+
+                eventsData.push(event);
+            }
+
+            setEvents(eventsData);
+        } catch (error) {
+            console.error('Erro ao carregar eventos:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [userData]); // ✅ Dependências do useCallback
+
+    // ✅ useEffect com dependências corretas
+    useEffect(() => {
+        loadEventsWithRegistrations();
+    }, [loadEventsWithRegistrations]);
+
+    // Adicione estas funções para aprovação/rejeição
+    const handleApproveRegistration = async (registrationId: string) => {
+        setApprovalLoading(registrationId);
+        try {
+            const registrationRef = doc(db, 'registrations', registrationId);
+            await updateDoc(registrationRef, {
+                status: 'approved',
+                approvedBy: userData?.uid,
+                approvedAt: new Date(),
+                updatedAt: new Date()
+            });
+
+            // Recarregar os dados
+            await loadEventsWithRegistrations();
+        } catch (error) {
+            console.error('Erro ao aprovar inscrição:', error);
+            alert('Erro ao aprovar inscrição');
+        } finally {
+            setApprovalLoading(null);
+        }
+    };
+
+    const handleRejectRegistration = async (registrationId: string, reason: string) => {
+        if (!reason.trim()) {
+            alert('Por favor, informe o motivo da rejeição');
+            return;
+        }
+
+        setApprovalLoading(registrationId);
+        try {
+            const registrationRef = doc(db, 'registrations', registrationId);
+            await updateDoc(registrationRef, {
+                status: 'rejected',
+                rejectedBy: userData?.uid,
+                rejectionReason: reason,
+                updatedAt: new Date()
+            });
+
+            // Recarregar os dados
+            await loadEventsWithRegistrations();
+        } catch (error) {
+            console.error('Erro ao rejeitar inscrição:', error);
+            alert('Erro ao rejeitar inscrição');
+        } finally {
+            setApprovalLoading(null);
+        }
+    };
 
     // Verificar permissões
     useEffect(() => {
@@ -33,88 +170,7 @@ export default function EventManagementPage() {
         }
     }, [userData]);
 
-    // Carregar eventos e inscrições
-    useEffect(() => {
-        const loadEventsWithRegistrations = async () => {
-            if (!userData || !['pastor', 'secretario_regional'].includes(userData.role)) return;
 
-            try {
-                // Buscar todos os eventos
-                const eventsSnapshot = await getDocs(collection(db, 'events'));
-                const eventsData: EventWithRegistrations[] = [];
-
-                for (const eventDoc of eventsSnapshot.docs) {
-                    const eventData = eventDoc.data();
-
-                    // Criar objeto event com todas as propriedades obrigatórias
-                    const event: EventWithRegistrations = {
-                        id: eventDoc.id,
-                        title: eventData.title || 'Evento sem título',
-                        description: eventData.description || '',
-                        date: eventData.date?.toDate() || new Date(),
-                        endDate: eventData.endDate?.toDate(),
-                        location: eventData.location || '',
-                        maxParticipants: Number(eventData.maxParticipants) || 0,
-                        currentParticipants: Number(eventData.currentParticipants) || 0,
-                        price: Number(eventData.price) || 0,
-                        churchId: eventData.churchId || '',
-                        churchName: eventData.churchName || '',
-                        status: eventData.status || 'active',
-                        createdAt: eventData.createdAt?.toDate() || new Date(),
-                        updatedAt: eventData.updatedAt?.toDate() || new Date(),
-                        imageURL: eventData.imageURL,
-                        createdBy: eventData.createdBy,
-                        registrations: [],
-                        paidCount: 0,
-                        pendingCount: 0
-                    };
-
-                    // Buscar inscrições para este evento
-                    const registrationsQuery = query(
-                        collection(db, 'registrations'),
-                        where('eventId', '==', eventDoc.id)
-                    );
-
-                    const registrationsSnapshot = await getDocs(registrationsQuery);
-                    const registrations: EventRegistration[] = [];
-
-                    registrationsSnapshot.forEach((regDoc) => {
-                        const regData = regDoc.data();
-                        registrations.push({
-                            id: regDoc.id,
-                            eventId: regData.eventId,
-                            userId: regData.userId,
-                            userName: regData.userName,
-                            userEmail: regData.userEmail,
-                            userPhone: regData.userPhone,
-                            userChurch: regData.userChurch,
-                            churchName: regData.churchName,
-                            pastorName: regData.pastorName,
-                            status: regData.status,
-                            paymentStatus: regData.paymentStatus,
-                            paymentDate: regData.paymentDate?.toDate(),
-                            createdAt: regData.createdAt.toDate(),
-                            updatedAt: regData.updatedAt.toDate()
-                        } as EventRegistration);
-                    });
-
-                    event.registrations = registrations;
-                    event.paidCount = registrations.filter(reg => reg.paymentStatus === 'paid').length;
-                    event.pendingCount = registrations.filter(reg => reg.paymentStatus === 'pending').length;
-
-                    eventsData.push(event);
-                }
-
-                setEvents(eventsData);
-            } catch (error) {
-                console.error('Erro ao carregar eventos:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadEventsWithRegistrations();
-    }, [userData]);
 
     // Aplicar filtros
     useEffect(() => {
@@ -123,6 +179,10 @@ export default function EventManagementPage() {
 
             if (filters.paymentStatus !== 'all') {
                 filtered = filtered.filter(reg => reg.paymentStatus === filters.paymentStatus);
+            }
+
+            if (filters.registrationStatus !== 'all') {
+                filtered = filtered.filter(reg => reg.status === filters.registrationStatus);
             }
 
             if (filters.churchName) {
@@ -141,10 +201,26 @@ export default function EventManagementPage() {
         }
     }, [selectedEvent, filters]);
 
+    // Adicione esta função para calcular estatísticas
+    const getStatusStats = () => {
+        if (!selectedEvent) return { pending: 0, approved: 0, rejected: 0 };
+
+        return {
+            pending: selectedEvent.registrations.filter(reg => reg.status === 'pending').length,
+            approved: selectedEvent.registrations.filter(reg => reg.status === 'approved').length,
+            rejected: selectedEvent.registrations.filter(reg => reg.status === 'rejected').length
+        };
+    };
+
     const handleEventSelect = (event: EventWithRegistrations) => {
         setSelectedEvent(event);
         setFilteredRegistrations(event.registrations);
-        setFilters({ paymentStatus: 'all', churchName: '', pastorName: '' });
+        setFilters({
+            paymentStatus: 'all',
+            churchName: '',
+            pastorName: '',
+            registrationStatus: 'all'
+        });
     };
 
     const handleExportCSV = () => {
@@ -256,7 +332,7 @@ export default function EventManagementPage() {
                             {/* Filtros */}
                             <div className="bg-gray-50 p-4 rounded-lg mb-6">
                                 <h3 className="font-semibold mb-3">Filtros</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4"> {/* ✅ Corrigido para 4 colunas */}
                                     <div>
                                         <label className="block text-sm font-medium mb-1">Status Pagamento</label>
                                         <select
@@ -267,7 +343,20 @@ export default function EventManagementPage() {
                                             <option value="all">Todos</option>
                                             <option value="paid">Pagos</option>
                                             <option value="pending">Pendentes</option>
-                                            <option value="refunded">Reembolsados</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Status Inscrição</label>
+                                        <select
+                                            value={filters.registrationStatus}
+                                            onChange={(e) => setFilters({ ...filters, registrationStatus: e.target.value })}
+                                            className="w-full p-2 border rounded"
+                                        >
+                                            <option value="all">Todos</option>
+                                            <option value="pending">Pendentes</option>
+                                            <option value="approved">Aprovados</option>
+                                            <option value="rejected">Rejeitados</option>
                                         </select>
                                     </div>
 
@@ -296,24 +385,26 @@ export default function EventManagementPage() {
                             </div>
 
                             {/* Estatísticas */}
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
                                 <div className="bg-green-50 p-4 rounded-lg text-center">
                                     <div className="text-2xl font-bold text-green-800">{selectedEvent.paidCount}</div>
-                                    <div className="text-green-600">Inscrições Pagas</div>
+                                    <div className="text-green-600">Pagas</div>
                                 </div>
                                 <div className="bg-yellow-50 p-4 rounded-lg text-center">
                                     <div className="text-2xl font-bold text-yellow-800">{selectedEvent.pendingCount}</div>
-                                    <div className="text-yellow-600">Inscrições Pendentes</div>
+                                    <div className="text-yellow-600">Pendentes Pag.</div>
                                 </div>
                                 <div className="bg-blue-50 p-4 rounded-lg text-center">
-                                    <div className="text-2xl font-bold text-blue-800">{selectedEvent.registrations.length}</div>
-                                    <div className="text-blue-600">Total de Inscrições</div>
+                                    <div className="text-2xl font-bold text-blue-800">{getStatusStats().approved}</div>
+                                    <div className="text-blue-600">Aprovadas</div>
                                 </div>
-                                <div className="bg-purple-50 p-4 rounded-lg text-center">
-                                    <div className="text-2xl font-bold text-purple-800">
-                                        {selectedEvent.currentParticipants}/{selectedEvent.maxParticipants}
-                                    </div>
-                                    <div className="text-purple-600">Vagas Ocupadas/Total</div>
+                                <div className="bg-orange-50 p-4 rounded-lg text-center">
+                                    <div className="text-2xl font-bold text-orange-800">{getStatusStats().pending}</div>
+                                    <div className="text-orange-600">Pendentes Aprov.</div>
+                                </div>
+                                <div className="bg-red-50 p-4 rounded-lg text-center">
+                                    <div className="text-2xl font-bold text-red-800">{getStatusStats().rejected}</div>
+                                    <div className="text-red-600">Rejeitadas</div>
                                 </div>
                             </div>
 
@@ -345,8 +436,10 @@ export default function EventManagementPage() {
                                                     <th className="border border-gray-300 p-2 text-left">Telefone</th>
                                                     <th className="border border-gray-300 p-2 text-left">Igreja</th>
                                                     <th className="border border-gray-300 p-2 text-left">Pastor</th>
-                                                    <th className="border border-gray-300 p-2 text-left">Status</th>
+                                                    <th className="border border-gray-300 p-2 text-left">Status Inscrição</th>
+                                                    <th className="border border-gray-300 p-2 text-left">Status de Pagamento</th>
                                                     <th className="border border-gray-300 p-2 text-left">Data Inscrição</th>
+                                                    <th className="border border-gray-300 p-2 text-left">Ações</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -358,11 +451,20 @@ export default function EventManagementPage() {
                                                         <td className="border border-gray-300 p-2">{registration.churchName}</td>
                                                         <td className="border border-gray-300 p-2">{registration.pastorName}</td>
                                                         <td className="border border-gray-300 p-2">
+                                                            <span className={`px-2 py-1 rounded text-xs ${registration.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                                                registration.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                                                    'bg-red-100 text-red-800'
+                                                                }`}>
+                                                                {registration.status === 'approved' ? 'Aprovado' :
+                                                                    registration.status === 'pending' ? 'Pendente' : 'Rejeitado'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="border border-gray-300 p-2">
                                                             <span className={`px-2 py-1 rounded text-xs ${registration.paymentStatus === 'paid'
-                                                                    ? 'bg-green-100 text-green-800'
-                                                                    : registration.paymentStatus === 'pending'
-                                                                        ? 'bg-yellow-100 text-yellow-800'
-                                                                        : 'bg-red-100 text-red-800'
+                                                                ? 'bg-green-100 text-green-800'
+                                                                : registration.paymentStatus === 'pending'
+                                                                    ? 'bg-yellow-100 text-yellow-800'
+                                                                    : 'bg-red-100 text-red-800'
                                                                 }`}>
                                                                 {registration.paymentStatus === 'paid' ? 'Pago' :
                                                                     registration.paymentStatus === 'pending' ? 'Pendente' : 'Reembolsado'}
@@ -370,6 +472,42 @@ export default function EventManagementPage() {
                                                         </td>
                                                         <td className="border border-gray-300 p-2">
                                                             {registration.createdAt.toLocaleDateString('pt-BR')}
+                                                        </td>
+                                                        <td className="border border-gray-300 p-2">
+                                                            {registration.status === 'pending' && (
+                                                                <div className="flex gap-2">
+                                                                    <button
+                                                                        onClick={() => handleApproveRegistration(registration.id)}
+                                                                        disabled={approvalLoading === registration.id}
+                                                                        className="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600 disabled:opacity-50"
+                                                                    >
+                                                                        {approvalLoading === registration.id ? '...' : '✅ Aprovar'}
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const reason = prompt('Motivo da rejeição:');
+                                                                            if (reason) handleRejectRegistration(registration.id, reason);
+                                                                        }}
+                                                                        disabled={approvalLoading === registration.id}
+                                                                        className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 disabled:opacity-50"
+                                                                    >
+                                                                        {approvalLoading === registration.id ? '...' : '❌ Rejeitar'}
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                            {registration.status === 'approved' && (
+                                                                <span className="text-green-600 text-sm">✓ Aprovado</span>
+                                                            )}
+                                                            {registration.status === 'rejected' && (
+                                                                <div>
+                                                                    <span className="text-red-600 text-sm">✗ Rejeitado</span>
+                                                                    {registration.rejectionReason && (
+                                                                        <div className="text-xs text-gray-500 mt-1">
+                                                                            Motivo: {registration.rejectionReason}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
                                                         </td>
                                                     </tr>
                                                 ))}

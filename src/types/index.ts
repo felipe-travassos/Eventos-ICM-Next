@@ -5,8 +5,8 @@ export interface EventRegistration {
     id: string;
     eventId: string;
     userId: string;
-    userType: 'user' | 'senior'; // Novo campo
-    seniorId?: string; // ID do senior se for inscrição de idoso
+    userType: 'user' | 'senior';
+    seniorId?: string;
     userName: string;
     userEmail: string;
     userPhone: string;
@@ -14,13 +14,17 @@ export interface EventRegistration {
     churchName: string;
     userCpf: string;
     pastorName: string;
-    status: 'pending' | 'confirmed' | 'cancelled';
+    status: 'pending' | 'approved' | 'rejected' | 'paid' | 'cancelled';
     paymentStatus: 'pending' | 'paid' | 'refunded';
     paymentDate?: Date;
     registeredBy: string; // ID do secretário
     registeredByName: string;
     registrationType: 'self' | 'secretary';
     paymentId: string;
+    approvedBy?: string;
+    approvedAt?: Date;
+    rejectionReason?: string;
+    rejectedBy?: string;
     createdAt: Date;
     updatedAt: Date;
 

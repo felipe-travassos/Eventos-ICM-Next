@@ -276,7 +276,6 @@ export default function HomePage() {
       )} */}
 
       {/* Header Hero */}
-      {/* Header Hero */}
       <header className="bg-gradient-to-r from-blue-600 to-purple-700 text-white py-12 rounded-lg mx-2">
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-6xl font-bold mb-6">Eventos da Igreja</h1>

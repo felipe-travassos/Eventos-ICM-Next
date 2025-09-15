@@ -1,3 +1,4 @@
+//src\components\SecretaryPaymentFlow.tsx
 'use client';
 
 import React, { useState } from 'react';
@@ -45,75 +46,116 @@ export default function SecretaryPaymentFlow({
         setLoading(true);
 
         try {
-            // 1. Criar pagamento PIX
-            const paymentResponse = await fetch('/api/pix/create', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    transaction_amount: selectedEvent.price,
-                    description: `Inscrição: ${selectedEvent.title} - ${selectedSenior.name}`,
-                    payment_method_id: 'pix',
-                    payer: {
-                        email: selectedSenior.email || 'idoso@igreja.com',
-                        first_name: selectedSenior.name.split(' ')[0],
-                        last_name: selectedSenior.name.split(' ').slice(1).join(' ') || '',
-                    },
-                    metadata: {
-                        registrationType: 'senior',
-                        seniorId: selectedSenior.id,
-                        seniorName: selectedSenior.name,
+            // 1. Primeiro verificar se já existe uma inscrição
+            const checkResponse = await fetch(`/api/registrations/check?eventId=${selectedEvent.id}&seniorId=${selectedSenior.id}`);
+
+            let existingRegistration = null;
+
+            if (checkResponse.ok) {
+                const data = await checkResponse.json();
+                existingRegistration = data || null; // ✅ Garante null se vazio
+            }
+
+            // 2. Se existir inscrição e não estiver aprovada, bloquear
+            if (existingRegistration && existingRegistration.status !== 'approved') {
+                alert('⏳ Esta inscrição ainda não foi aprovada. Aguarde a liberação do secretário responsável.');
+                setLoading(false);
+                return;
+            }
+
+            // 3. Se não existir inscrição, criar uma como pendente
+            if (!existingRegistration) {
+                const registrationResponse = await fetch('/api/secretary/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        secret: 'apdsj123456',
+                        secretaryId: userData.uid,
+                        secretaryName: userData.name,
                         eventId: selectedEvent.id,
                         eventName: selectedEvent.title,
-                        secretaryId: userData.uid
-                    }
-                })
-            });
+                        seniorId: selectedSenior.id,
+                        userName: selectedSenior.name,
+                        userEmail: selectedSenior.email,
+                        userPhone: selectedSenior.phone,
+                        userCpf: selectedSenior.cpf,
+                        churchName: selectedSenior.church,
+                        pastorName: selectedSenior.pastor,
+                        status: 'pending',
+                        paymentStatus: 'pending'
+                    })
+                });
 
-            const paymentResult = await paymentResponse.json();
+                if (!registrationResponse.ok) {
+                    const errorData = await registrationResponse.json();
+                    throw new Error(errorData.error || 'Erro ao criar inscrição');
+                }
 
-            if (!paymentResponse.ok) {
-                throw new Error(paymentResult.error || 'Erro ao criar pagamento');
+                alert('✅ Inscrição enviada para aprovação! Aguarde a liberação antes de realizar o pagamento.');
+                setLoading(false);
+                return;
             }
 
-            // 2. Salvar inscrição
-            const registrationResponse = await fetch('/api/secretary/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    secret: 'apdsj123456',
-                    secretaryId: userData.uid,
-                    secretaryName: userData.name,
-                    eventId: selectedEvent.id,
-                    eventName: selectedEvent.title,
-                    seniorId: selectedSenior.id,
-                    userName: selectedSenior.name,
-                    userEmail: selectedSenior.email,
-                    userPhone: selectedSenior.phone,
-                    userCpf: selectedSenior.cpf,
-                    churchName: selectedSenior.church,
-                    pastorName: selectedSenior.pastor,
-                    paymentId: paymentResult.id
-                })
-            });
+            // 4. Só criar pagamento se a inscrição estiver aprovada
+            if (existingRegistration.status === 'approved') {
+                // ✅ Seu código de pagamento PIX aqui (mantido igual)
+                const paymentResponse = await fetch('/api/pix/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        transaction_amount: selectedEvent.price,
+                        description: `Inscrição: ${selectedEvent.title} - ${selectedSenior.name}`,
+                        payment_method_id: 'pix',
+                        payer: {
+                            email: selectedSenior.email || 'idoso@igreja.com',
+                            first_name: selectedSenior.name.split(' ')[0],
+                            last_name: selectedSenior.name.split(' ').slice(1).join(' ') || '',
+                        },
+                        metadata: {
+                            registrationType: 'senior',
+                            seniorId: selectedSenior.id,
+                            seniorName: selectedSenior.name,
+                            eventId: selectedEvent.id,
+                            eventName: selectedEvent.title,
+                            secretaryId: userData.uid
+                        }
+                    })
+                });
 
-            const registrationResult = await registrationResponse.json();
+                const paymentResult = await paymentResponse.json();
 
-            if (!registrationResponse.ok) {
-                throw new Error(registrationResult.error || 'Erro ao salvar inscrição');
+                if (!paymentResponse.ok) {
+                    throw new Error(paymentResult.error || 'Erro ao criar pagamento');
+                }
+
+                // ✅ Atualizar a inscrição existente com o ID do pagamento
+                const updateResponse = await fetch('/api/secretary/update-registration', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        registrationId: existingRegistration.id,
+                        paymentId: paymentResult.id,
+                        paymentStatus: 'pending'
+                    })
+                });
+
+                if (!updateResponse.ok) {
+                    throw new Error('Erro ao atualizar inscrição');
+                }
+
+                // ✅ Mostrar modal de pagamento
+                setPaymentData({
+                    ...paymentResult,
+                    senior: selectedSenior,
+                    event: selectedEvent,
+                    registrationId: existingRegistration.id
+                });
+                setShowPaymentModal(true);
             }
-
-            // 3. Mostrar modal de pagamento
-            setPaymentData({
-                ...paymentResult,
-                senior: selectedSenior,
-                event: selectedEvent,
-                registrationId: registrationResult.registrationId
-            });
-            setShowPaymentModal(true);
 
         } catch (error: any) {
             console.error('Erro no processo:', error);
-            alert('Erro: ' + error.message);
+            alert('Erro: ' + (error.message || 'Erro desconhecido'));
         } finally {
             setLoading(false);
         }

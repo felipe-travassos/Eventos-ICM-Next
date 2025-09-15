@@ -1,0 +1,4 @@
+{
+    "editor.defaultFormatter": "DavidDai.deepseek-code-generator",
+    "editor.defaultFoldingRangeProvider": "DavidDai.deepseek-code-generator"
+}
