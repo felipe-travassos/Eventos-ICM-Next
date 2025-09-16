@@ -2,7 +2,10 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
+
+import logoImage from '@/assets/logo1.png';
 
 const Navbar: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -26,10 +29,14 @@ const Navbar: React.FC = () => {
 
                     {/* Logo */}
                     <Link href="/" className="flex items-center space-x-2" onClick={closeMenu}>
-                        <div className="bg-white/10 p-2 rounded-lg border border-white/20">
-                            <span className="text-xl font-bold bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
-                                ICM
-                            </span>
+                        <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/20 flex items-center justify-center bg-blue-950">
+                            <Image
+                                src={logoImage}
+                                alt="Logo ICM"
+                                width={32}
+                                height={32}
+                                className="object-contain"
+                            />
                         </div>
                         <span className="text-white font-bold text-lg hidden sm:block">
                             Eventos
@@ -170,8 +177,8 @@ const MobileLink = ({ href, icon, text, onClick, primary = false }: { href: stri
         href={href}
         onClick={onClick}
         className={`flex items-center space-x-2 p-2 rounded-lg transition-colors ${primary
-                ? 'bg-green-500 hover:bg-green-600 text-white'
-                : 'hover:bg-white/10'
+            ? 'bg-green-500 hover:bg-green-600 text-white'
+            : 'hover:bg-white/10'
             }`}
     >
         {icon && <span>{icon}</span>}

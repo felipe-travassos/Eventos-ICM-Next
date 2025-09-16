@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google';
 import { AuthProvider } from '@/contexts/AuthContext';
 import './globals.css';
 import Navbar from '@/components/layout/Navbar';
+import Footer from '@/components/layout/Footer'
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -24,6 +25,7 @@ export default function RootLayout({
           <main className="pt-16 min-h-screen bg-gray-50"> {/* Adicionado bg-gray-50 */}
             {children}
           </main>
+          <Footer />
         </AuthProvider>
       </body>
     </html>

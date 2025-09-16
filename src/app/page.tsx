@@ -265,7 +265,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-16"> {/* Adicionado pt-16 para espaço da navbar */}
+    <div className="min-h-screen bg-gray-50 pt-16">
       {/* Debug info */}
       {/* {process.env.NODE_ENV === 'development' && (
         <div className="fixed top-4 right-4 bg-black text-white p-3 rounded-lg z-50 text-xs">
@@ -278,9 +278,9 @@ export default function HomePage() {
       {/* Header Hero */}
       <header className="bg-gradient-to-r from-blue-600 to-purple-700 text-white py-12 rounded-lg mx-2">
         <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">Eventos da Igreja</h1>
+          <h1 className="text-4xl md:text-6xl font-bold mb-6">Eventos da Área</h1>
           <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">
-            Participe dos eventos especiais da nossa comunidade e fortaleça sua fé.
+            Participe dos próximos seminários
           </p>
 
           {!currentUser ? (
@@ -409,8 +409,7 @@ export default function HomePage() {
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-6">Participe da Nossa Comunidade</h2>
           <p className="text-gray-600 text-lg mb-8 max-w-2xl mx-auto">
-            Junte-se a nós nos eventos que fortalecem nossa fé e comunidade.
-            Há sempre um lugar para você em nossa família espiritual.
+            Siga nossas redes sociais para acompanhar todos os eventos.
           </p>
 
           {!currentUser ? (
