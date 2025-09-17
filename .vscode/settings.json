@@ -1,4 +1,7 @@
 {
     "editor.defaultFormatter": "DavidDai.deepseek-code-generator",
-    "editor.defaultFoldingRangeProvider": "DavidDai.deepseek-code-generator"
+    "editor.defaultFoldingRangeProvider": "DavidDai.deepseek-code-generator",
+    "[typescriptreact]": {
+        "editor.defaultFormatter": "vscode.typescript-language-features"
+    }
 }

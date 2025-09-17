@@ -73,7 +73,7 @@ export default function Login() {
                     src={splashImage}
                     alt="Background da Igreja"
                     fill
-                    className="object-contain"
+                    className="object-cover"
                     priority
                     placeholder="blur"
                     sizes="100vw"
@@ -82,7 +82,7 @@ export default function Login() {
             </div>
 
             {/* Conteúdo principal - sem blur */}
-            <div className="w-full max-w-md z-10 relative bg-white p-6 rounded-2xl shadow-2xl">
+            <div className="w-full max-w-md z-10 relative bg-white bg-opacity-50 p-6 rounded-2xl shadow-2xl">
                 {/* Header com logo circular */}
                 <div className="text-center mb-6">
                     <div className="flex flex-col items-center justify-center mb-4">

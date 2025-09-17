@@ -1,16 +1,23 @@
 // components/SecretaryRegistrationFlow.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import SeniorAutocomplete from './SeniorAutocomplete';
 import AddSeniorModal from './AddSeniorModal';
 import PaymentModal from './PaymentModal';
 import { useAuth } from '@/contexts/AuthContext';
+import { doc, getDoc } from 'firebase/firestore';
+
+import { db } from '@/lib/firebase/config';
+
+
 
 interface SecretaryRegistrationFlowProps {
     event: any;
     onComplete: () => void;
 }
+
+
 
 export default function SecretaryRegistrationFlow({
     event,
@@ -20,7 +27,21 @@ export default function SecretaryRegistrationFlow({
     const [showAddModal, setShowAddModal] = useState(false);
     const [paymentData, setPaymentData] = useState<any>(null);
     const [loading, setLoading] = useState(false);
-    const { userData } = useAuth();
+    const { userData, currentUser } = useAuth();
+    const [currentChurch, setCurrentChurch] = useState(null);
+
+    useEffect(() => {
+        const fetchChurchData = async () => {
+            if (currentUser?.churchId) {
+                const churchDoc = await getDoc(doc(db, 'churches', currentUser.churchId));
+                if (churchDoc.exists()) {
+                    setCurrentChurch(churchDoc.data());
+                }
+            }
+        };
+
+        fetchChurchData();
+    }, [currentUser]);
 
     const handleSeniorSelect = (senior: any) => {
         setSelectedSenior(senior);
@@ -167,9 +188,13 @@ export default function SecretaryRegistrationFlow({
 
             {showAddModal && (
                 <AddSeniorModal
-                    onClose={() => setShowAddModal(false)}
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
                     onSeniorAdded={handleSeniorAdded}
-                    secretaryId={userData?.uid || ''}
+                    secretaryId={currentUser.uid} // ID do usuário logado
+                    userChurchId={currentUser.churchId} // ID da igreja do usuário
+                    userChurchName={currentUser.churchName} // Nome da igreja do usuário
+                    pastorName={currentChurch?.pastorName} // Nome do pastor (buscar da coleção churches)
                 />
             )}
 

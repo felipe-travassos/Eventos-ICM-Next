@@ -1,7 +1,7 @@
 // components/AddSeniorModal.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface AddSeniorModalProps {
     isOpen: boolean;
@@ -9,6 +9,9 @@ interface AddSeniorModalProps {
     onSeniorAdded: (senior: any) => void;
     secretaryId: string;
     initialName?: string;
+    userChurchId: string; 
+    userChurchName: string; 
+    pastorName: string;
 }
 
 export default function AddSeniorModal({
@@ -16,7 +19,10 @@ export default function AddSeniorModal({
     onClose,
     onSeniorAdded,
     secretaryId,
-    initialName = ''
+    initialName = '',
+    userChurchId,
+    userChurchName,
+    pastorName
 }: AddSeniorModalProps) {
     const [formData, setFormData] = useState({
         name: initialName,
@@ -24,12 +30,21 @@ export default function AddSeniorModal({
         phone: '',
         cpf: '',
         birthDate: '',
-        church: '',
-        pastor: '',
+        church: userChurchName, // Preenche automaticamente
+        pastor: pastorName, // Preenche automaticamente
         address: '',
         healthInfo: ''
     });
     const [loading, setLoading] = useState(false);
+
+    // Atualiza os campos quando as props mudarem
+    useEffect(() => {
+        setFormData(prev => ({
+            ...prev,
+            church: userChurchName,
+            pastor: pastorName
+        }));
+    }, [userChurchName, pastorName]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -41,6 +56,7 @@ export default function AddSeniorModal({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...formData,
+                    churchId: userChurchId, // Adiciona o ID da igreja
                     secretaryId: secretaryId,
                     secret: 'secret-key-123' // mesma chave do .env
                 })
@@ -107,8 +123,8 @@ export default function AddSeniorModal({
                             type="text"
                             required
                             value={formData.church}
-                            onChange={(e) => setFormData({ ...formData, church: e.target.value })}
-                            className="w-full p-2 border border-gray-300 rounded"
+                            readOnly // Torna o campo somente leitura
+                            className="w-full p-2 border border-gray-300 rounded bg-gray-100"
                         />
                     </div>
 
@@ -118,8 +134,28 @@ export default function AddSeniorModal({
                             type="text"
                             required
                             value={formData.pastor}
-                            onChange={(e) => setFormData({ ...formData, pastor: e.target.value })}
+                            readOnly // Torna o campo somente leitura
+                            className="w-full p-2 border border-gray-300 rounded bg-gray-100"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Endereço</label>
+                        <input
+                            type="text"
+                            value={formData.address}
+                            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                             className="w-full p-2 border border-gray-300 rounded"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Informações de Saúde</label>
+                        <textarea
+                            value={formData.healthInfo}
+                            onChange={(e) => setFormData({ ...formData, healthInfo: e.target.value })}
+                            className="w-full p-2 border border-gray-300 rounded"
+                            rows={3}
                         />
                     </div>
 
