@@ -21,7 +21,7 @@ export default function Register() {
     // Redirecionar se já estiver logado
     useEffect(() => {
         if (currentUser) {
-            router.push('/events');
+            router.push('/');
         }
     }, [currentUser, router]);
 

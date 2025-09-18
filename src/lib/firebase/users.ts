@@ -21,14 +21,13 @@ import { Church, User, UserRole } from '@/types';
  * await updateProfileData('user123', {
  *   cpf: '123.456.789-00',
  *   phone: '(11) 99999-9999',
- *   churchId: 'church456'
+ *   churchId: 'ITBHv3pVDuBrc3CyzOp4'
  * });
  */
 export const updateProfileData = async (userId: string, data: {
   cpf?: string;
   phone?: string;
   churchId?: string;
-  
 }) => {
   try {
     await updateDoc(doc(db, 'users', userId), {
@@ -51,16 +50,24 @@ export const updateProfileData = async (userId: string, data: {
 export const getChurches = async (): Promise<Church[]> => {
   try {
     const querySnapshot = await getDocs(collection(db, 'churches'));
-    const churches = querySnapshot.docs.map(doc => ({
-      id: doc.id, // Inclui o ID do documento
-      ...doc.data() // Inclui todos os demais campos
-    })) as Church[];
+    const churches = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.name || '',
+        address: data.address || '',
+        pastorId: data.pastorId || '',
+        pastorName: data.pastorName || '',
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || undefined
+      } as Church;
+    });
 
-    console.log('Igrejas carregadas:', churches); // Log para debug
+    console.log('Igrejas carregadas:', churches);
     return churches;
   } catch (error) {
     console.error('Erro ao buscar igrejas:', error);
-    return []; // Retorna array vazio em caso de erro
+    return [];
   }
 }
 
@@ -75,30 +82,45 @@ export const getChurches = async (): Promise<Church[]> => {
 export const getUsers = async (): Promise<User[]> => {
   try {
     const querySnapshot = await getDocs(
-      query(collection(db, 'users'), orderBy('name', 'asc')) // Ordena por nome ASC
+      query(collection(db, 'users'), orderBy('name', 'asc'))
     );
 
     const users: User[] = [];
 
-    querySnapshot.forEach((doc) => {
-      const data = doc.data();
+    for (const userDoc of querySnapshot.docs) {
+      const data = userDoc.data();
+      let churchName = null;
+
+      if (data.churchId) {
+        try {
+          const churchDoc = await getDoc(doc(db, 'churches', data.churchId as string));
+          if (churchDoc.exists()) {
+            const churchData = churchDoc.data() as { name?: string };
+            churchName = churchData.name || null;
+          }
+        } catch (error) {
+          console.error(`Erro ao buscar igreja ${data.churchId}:`, error);
+        }
+      }
+
       users.push({
-        id: doc.id,
-        name: data.name,
-        email: data.email,
-        role: data.role,
-        cpf: data.cpf,
-        phone: data.phone,
-        churchId: data.churchId,
-        createdAt: data.createdAt.toDate(), // Converte Firestore Timestamp para Date
-        updatedAt: data.updatedAt?.toDate() // Converte opcionalmente se existir
+        id: userDoc.id,
+        name: data.name || '',
+        email: data.email || '',
+        role: (data.role as UserRole) || 'member',
+        cpf: data.cpf || '',
+        phone: data.phone || '',
+        churchId: data.churchId || null,
+        churchName: churchName,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || undefined
       } as User);
-    });
+    }
 
     return users;
   } catch (error) {
     console.error('Erro ao buscar usuários:', error);
-    throw error; // Propaga o erro para tratamento no componente
+    throw error;
   }
 };
 
@@ -114,29 +136,11 @@ export const getUsers = async (): Promise<User[]> => {
  */
 export const updateUserRole = async (userId: string, newRole: UserRole): Promise<void> => {
   try {
+    // Apenas atualiza a role do usuário
     await updateDoc(doc(db, 'users', userId), {
       role: newRole,
-      updatedAt: new Date() // Atualiza timestamp
+      updatedAt: new Date()
     });
-
-    // Se estiver alterando para uma role que não seja pastor, remover vínculo com igreja
-    if (newRole !== 'pastor') {
-      await updateDoc(doc(db, 'users', userId), {
-        churchId: null // Remove referência à igreja
-      });
-
-      // Também remover o pastorId da igreja, se houver
-      const userDoc = await getDoc(doc(db, 'users', userId));
-      const userData = userDoc.data();
-
-      if (userData?.churchId) {
-        await updateDoc(doc(db, 'churches', userData.churchId), {
-          pastorId: null,        // Remove referência ao pastor
-          pastorName: null,      // Remove nome do pastor
-          updatedAt: new Date()  // Atualiza timestamp
-        });
-      }
-    }
   } catch (error) {
     console.error('Erro ao atualizar função do usuário:', error);
     throw error;
@@ -156,27 +160,42 @@ export const getUsersByRole = async (role: UserRole): Promise<User[]> => {
   try {
     const q = query(
       collection(db, 'users'),
-      where('role', '==', role),     // Filtra por role
-      orderBy('name', 'asc')         // Ordena por nome
+      where('role', '==', role),
+      orderBy('name', 'asc')
     );
 
     const querySnapshot = await getDocs(q);
     const users: User[] = [];
 
-    querySnapshot.forEach((doc) => {
-      const data = doc.data();
+    for (const userDoc of querySnapshot.docs) {
+      const data = userDoc.data();
+      let churchName = null;
+
+      if (data.churchId) {
+        try {
+          const churchDoc = await getDoc(doc(db, 'churches', data.churchId as string));
+          if (churchDoc.exists()) {
+            const churchData = churchDoc.data() as { name?: string };
+            churchName = churchData.name || null;
+          }
+        } catch (error) {
+          console.error(`Erro ao buscar igreja ${data.churchId}:`, error);
+        }
+      }
+
       users.push({
-        id: doc.id,
-        name: data.name,
-        email: data.email,
-        role: data.role,
-        cpf: data.cpf,
-        phone: data.phone,
-        churchId: data.churchId,
-        createdAt: data.createdAt.toDate(),
-        updatedAt: data.updatedAt?.toDate()
+        id: userDoc.id,
+        name: data.name || '',
+        email: data.email || '',
+        role: (data.role as UserRole) || 'member',
+        cpf: data.cpf || '',
+        phone: data.phone || '',
+        churchId: data.churchId || null,
+        churchName: churchName,
+        createdAt: data.createdAt?.toDate() || new Date(),
+        updatedAt: data.updatedAt?.toDate() || undefined
       } as User);
-    });
+    }
 
     return users;
   } catch (error) {
@@ -203,20 +222,35 @@ export const getUserById = async (userId: string): Promise<User | null> => {
     const userDoc = await getDoc(doc(db, 'users', userId));
 
     if (!userDoc.exists()) {
-      return null; // Retorna null se o usuário não existir
+      return null;
     }
 
     const data = userDoc.data();
+    let churchName = null;
+
+    if (data.churchId) {
+      try {
+        const churchDoc = await getDoc(doc(db, 'churches', data.churchId as string));
+        if (churchDoc.exists()) {
+          const churchData = churchDoc.data();
+          churchName = churchData.name || null;
+        }
+      } catch (error) {
+        console.error(`Erro ao buscar igreja ${data.churchId}:`, error);
+      }
+    }
+
     return {
       id: userDoc.id,
-      name: data.name,
-      email: data.email,
-      role: data.role,
-      cpf: data.cpf,
-      phone: data.phone,
-      churchId: data.churchId,
-      createdAt: data.createdAt.toDate(),
-      updatedAt: data.updatedAt?.toDate()
+      name: data.name || '',
+      email: data.email || '',
+      role: (data.role as UserRole) || 'member',
+      cpf: data.cpf || '',
+      phone: data.phone || '',
+      churchId: data.churchId || null,
+      churchName: churchName,
+      createdAt: data.createdAt?.toDate() || new Date(),
+      updatedAt: data.updatedAt?.toDate() || undefined
     } as User;
   } catch (error) {
     console.error('Erro ao buscar usuário:', error);

@@ -16,9 +16,9 @@ const Navbar: React.FC = () => {
         setIsOpen(false);
     };
 
-    const isAdmin = userData?.role === 'secretario_regional' ||
-        userData?.role === 'pastor' ||
-        userData?.role === 'secretario_local';
+    const isAdmin = userData?.role === 'secretario_regional';
+
+    const isSecretary = userData?.role === 'pastor' || userData?.role === 'secretario_local';
 
     const closeMenu = () => setIsOpen(false);
 
@@ -56,6 +56,13 @@ const Navbar: React.FC = () => {
                             <div className="flex items-center space-x-2 ml-2 pl-2 border-l border-white/20">
                                 <NavLink href="/admin/events" icon="📅" text="Eventos" sm />
                                 <NavLink href="/admin/churches" icon="⛪" text="Igrejas" sm />
+                                <NavLink href="/admin/users" icon="👥" text="Usuários" sm />
+                                <NavLink href="/admin/event-management" icon="📋" text="Inscrições" sm />
+                            </div>
+                        )}
+
+                        {isSecretary && (
+                            <div className="flex items-center space-x-2 ml-2 pl-2 border-l border-white/20">
                                 <NavLink href="/admin/users" icon="👥" text="Usuários" sm />
                                 <NavLink href="/admin/event-management" icon="📋" text="Inscrições" sm />
                             </div>
@@ -133,6 +140,14 @@ const Navbar: React.FC = () => {
                                     </div>
                                 </>
                             )}
+
+                            {isSecretary && (
+                            <div className="pt-2 border-t border-white/10">
+                                <p className="px-2 py-1 text-blue-200 text-sm">Administração</p>
+                                <MobileLink href="/admin/users" icon="👥" text="Usuários" onClick={closeMenu} />
+                                <MobileLink href="/admin/event-management" icon="📋" text="Inscrições" onClick={closeMenu} />
+                            </div>
+                        )}
                         </div>
 
                         <div className="pt-3 mt-3 border-t border-white/10">

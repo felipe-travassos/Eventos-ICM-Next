@@ -10,7 +10,7 @@ import {
     sendPasswordResetEmail,
     signOut
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase/config';
 import { User, UserRole } from '@/types';
 
@@ -25,6 +25,7 @@ interface AuthContextType {
     register: (email: string, password: string, name: string) => Promise<void>;
     logout: () => Promise<void>;
     resetPassword: (email: string) => Promise<void>;
+    updateUserData: (newData: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -78,30 +79,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await sendPasswordResetEmail(auth, email);
     };
 
+    const updateUserData = (newData: Partial<User>) => {
+        if (userData) {
+            setUserData({ ...userData, ...newData });
+        }
+    };
+
+
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
             setCurrentUser(user);
 
             if (user) {
                 try {
-                    const userDoc = await getDoc(doc(db, 'users', user.uid));
-                    if (userDoc.exists()) {
-                        const data = userDoc.data();
-                        setUserData({
-                            id: userDoc.id,
-                            uid: user.uid,
-                            churchId: data.churchId || '',
-                            cpf: data.cpf || '',
-                            name: data.name || '',
-                            email: data.email || '',
-                            phone: data.phone || '',
-                            role: data.role || 'membro',
-                            createdAt: data.createdAt?.toDate() || new Date(),
-                            updatedAt: data.updatedAt?.toDate() || new Date()
-                        });
-                    } else {
-                        setUserData(null);
-                    }
+                    // Use onSnapshot para listener em tempo real
+                    const unsubscribeUser = onSnapshot(doc(db, 'users', user.uid), (doc) => {
+                        if (doc.exists()) {
+                            const data = doc.data();
+                            setUserData({
+                                id: doc.id,
+                                uid: user.uid,
+                                churchId: data.churchId || '',
+                                cpf: data.cpf || '',
+                                name: data.name || '',
+                                email: data.email || '',
+                                phone: data.phone || '',
+                                role: data.role || 'membro',
+                                createdAt: data.createdAt?.toDate() || new Date(),
+                                updatedAt: data.updatedAt?.toDate() || new Date()
+                            });
+                        } else {
+                            setUserData(null);
+                        }
+                    });
+
+                    // Retorne a função de unsubscribe para limpar o listener
+                    return unsubscribeUser;
                 } catch (error) {
                     console.error('Erro ao buscar dados do usuário:', error);
                     setUserData(null);
@@ -113,7 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setLoading(false);
         });
 
-        return unsubscribe;
+        return unsubscribeAuth;
     }, []);
 
     const contextValue: AuthContextType = {
@@ -122,6 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         login,
         register,
+        updateUserData,
         logout,
         resetPassword
     };

@@ -240,14 +240,16 @@ export default function HomePage() {
     }
   };
 
+
+  /**
+   * Carrossel
+   */
   const nextSlide = () => {
     setCurrentSlide((prev) => (prev + 1) % events.length);
   };
-
   const prevSlide = () => {
     setCurrentSlide((prev) => (prev - 1 + events.length) % events.length);
   };
-
   const goToSlide = (index: number) => {
     setCurrentSlide(index);
   };
@@ -266,14 +268,6 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
-      {/* Debug info */}
-      {/* {process.env.NODE_ENV === 'development' && (
-        <div className="fixed top-4 right-4 bg-black text-white p-3 rounded-lg z-50 text-xs">
-          <div>Eventos: {events.length}</div>
-          <div>Usuário: {currentUser ? 'Logado' : 'Não logado'}</div>
-          <div>UserData: {userData ? 'Existe' : 'Nulo'}</div>
-        </div>
-      )} */}
 
       {/* Header Hero */}
       <header className="bg-gradient-to-r from-blue-600 to-purple-700 text-white py-12 rounded-lg mx-2">
@@ -342,7 +336,7 @@ export default function HomePage() {
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg mb-4">Nenhum evento disponível no momento.</p>
             <p className="text-gray-400">Volte em breve para conferir novos eventos!</p>
-            {(userData?.role === 'secretario_regional' || userData?.role === 'pastor' || userData?.role === 'secretario_local') && (
+            {(userData?.role === 'secretario_regional') && (
               <div className="mt-4">
                 <Link href="/admin/events" className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition duration-200">
                   Cadastrar Primeiro Evento
