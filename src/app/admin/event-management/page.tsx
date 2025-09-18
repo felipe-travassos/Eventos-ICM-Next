@@ -7,6 +7,8 @@ import { collection, doc, getDocs, query, updateDoc, where } from 'firebase/fire
 import { db } from '@/lib/firebase/config';
 import { Event, EventRegistration } from '@/types';
 
+import Image from 'next/image';
+
 interface EventWithRegistrations extends Event {
     registrations: EventRegistration[];
     paidCount: number;
@@ -25,12 +27,54 @@ export default function EventManagementPage() {
         pastorName: '',
         registrationStatus: 'all',
     });
-    const [approvalLoading, setApprovalLoading] = useState<string | null>(null);
+    const [generatingPayment, setGeneratingPayment] = useState<string | null>(null);
+    const [showPixModal, setShowPixModal] = useState<{
+        registration: EventRegistration;
+        pixData: any;
+        event: EventWithRegistrations;
+    } | null>(null);
 
+    const [approvalLoading, setApprovalLoading] = useState<string | null>(null);
     const { userData } = useAuth();
 
+    // Função para atualização otimista do status
+    const updateRegistrationStatus = (registrationId: string, newStatus: 'approved' | 'rejected', rejectionReason?: string) => {
+        setEvents(prevEvents =>
+            prevEvents.map(event => {
+                if (event.id === selectedEvent?.id) {
+                    const updatedRegistrations = event.registrations.map(reg =>
+                        reg.id === registrationId
+                            ? {
+                                ...reg,
+                                status: newStatus,
+                                ...(rejectionReason && { rejectionReason })
+                            }
+                            : reg
+                    );
+
+                    return {
+                        ...event,
+                        registrations: updatedRegistrations
+                    };
+                }
+                return event;
+            })
+        );
+
+        setFilteredRegistrations(prev =>
+            prev.map(reg =>
+                reg.id === registrationId
+                    ? {
+                        ...reg,
+                        status: newStatus,
+                        ...(rejectionReason && { rejectionReason })
+                    }
+                    : reg
+            )
+        );
+    };
+
     // Carregar eventos e inscrições
-    // ✅ useCallback para memoizar a função
     const loadEventsWithRegistrations = useCallback(async () => {
         if (!userData || !['pastor', 'secretario_regional'].includes(userData.role)) return;
 
@@ -108,17 +152,95 @@ export default function EventManagementPage() {
         } finally {
             setLoading(false);
         }
-    }, [userData]); // ✅ Dependências do useCallback
+    }, [userData]);
 
     // ✅ useEffect com dependências corretas
     useEffect(() => {
         loadEventsWithRegistrations();
     }, [loadEventsWithRegistrations]);
 
+    const handleGeneratePixPayment = async (registration: EventRegistration) => {
+        setGeneratingPayment(registration.id);
+
+        try {
+            // Buscar dados completos do idoso
+            const seniorResponse = await fetch(`/api/seniors/${registration.userId}`);
+            const seniorData = await seniorResponse.json();
+
+            const paymentData = {
+                transaction_amount: selectedEvent?.price || 0,
+                description: `Inscrição: ${selectedEvent?.title} - ${registration.userName}`,
+                payer: {
+                    email: registration.userEmail,
+                    first_name: registration.userName.split(' ')[0],
+                    last_name: registration.userName.split(' ').slice(1).join(' '),
+                    identification: {
+                        type: 'CPF',
+                        number: seniorData.cpf || '00000000000'
+                    }
+                },
+                metadata: {
+                    registrationId: registration.id,
+                    eventId: registration.eventId,
+                    seniorId: registration.userId,
+                    eventTitle: selectedEvent?.title,
+                    userName: registration.userName
+                },
+                additional_info: {
+                    items: [
+                        {
+                            id: registration.eventId,
+                            title: selectedEvent?.title || 'Evento',
+                            description: selectedEvent?.description || '',
+                            category_id: 'events',
+                            quantity: 1,
+                            unit_price: selectedEvent?.price || 0
+                        }
+                    ],
+                    payer: {
+                        first_name: registration.userName.split(' ')[0],
+                        last_name: registration.userName.split(' ').slice(1).join(' ')
+                    }
+                }
+            };
+
+            const response = await fetch('/api/pix/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(paymentData),
+            });
+
+            if (response.ok) {
+                const pixData = await response.json();
+
+                // Mostrar modal com QR Code do PIX
+                setShowPixModal({
+                    registration,
+                    pixData,
+                    event: selectedEvent!
+                });
+
+            } else {
+                const errorData = await response.json();
+                alert(`Erro ao gerar PIX: ${errorData.error || 'Erro desconhecido'}`);
+            }
+        } catch (error) {
+            console.error('Erro ao gerar PIX:', error);
+            alert('Erro ao gerar PIX');
+        } finally {
+            setGeneratingPayment(null);
+        }
+    };
+
     // Adicione estas funções para aprovação/rejeição
     const handleApproveRegistration = async (registrationId: string) => {
         setApprovalLoading(registrationId);
         try {
+            // Atualização otimista
+            updateRegistrationStatus(registrationId, 'approved');
+
             const registrationRef = doc(db, 'registrations', registrationId);
             await updateDoc(registrationRef, {
                 status: 'approved',
@@ -127,11 +249,14 @@ export default function EventManagementPage() {
                 updatedAt: new Date()
             });
 
-            // Recarregar os dados
-            await loadEventsWithRegistrations();
+            console.log('✅ Inscrição aprovada com sucesso');
+
         } catch (error) {
-            console.error('Erro ao aprovar inscrição:', error);
+            console.error('❌ Erro ao aprovar inscrição:', error);
             alert('Erro ao aprovar inscrição');
+
+            // Reverte em caso de erro
+            loadEventsWithRegistrations();
         } finally {
             setApprovalLoading(null);
         }
@@ -145,6 +270,9 @@ export default function EventManagementPage() {
 
         setApprovalLoading(registrationId);
         try {
+            // Atualização otimista
+            updateRegistrationStatus(registrationId, 'rejected', reason);
+
             const registrationRef = doc(db, 'registrations', registrationId);
             await updateDoc(registrationRef, {
                 status: 'rejected',
@@ -153,11 +281,14 @@ export default function EventManagementPage() {
                 updatedAt: new Date()
             });
 
-            // Recarregar os dados
-            await loadEventsWithRegistrations();
+            console.log('✅ Inscrição rejeitada com sucesso');
+
         } catch (error) {
-            console.error('Erro ao rejeitar inscrição:', error);
+            console.error('❌ Erro ao rejeitar inscrição:', error);
             alert('Erro ao rejeitar inscrição');
+
+            // Reverte em caso de erro
+            loadEventsWithRegistrations();
         } finally {
             setApprovalLoading(null);
         }
@@ -169,8 +300,6 @@ export default function EventManagementPage() {
             window.location.href = '/';
         }
     }, [userData]);
-
-
 
     // Aplicar filtros
     useEffect(() => {
@@ -321,18 +450,26 @@ export default function EventManagementPage() {
                                     <p className="text-gray-600">{selectedEvent.location}</p>
                                     <p className="text-gray-600">Preço: R$ {selectedEvent.price.toFixed(2)}</p>
                                 </div>
-                                <button
-                                    onClick={() => setSelectedEvent(null)}
-                                    className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-                                >
-                                    Voltar
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setSelectedEvent(null)}
+                                        className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+                                    >
+                                        Voltar
+                                    </button>
+                                    <button
+                                        onClick={loadEventsWithRegistrations}
+                                        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                                    >
+                                        🔄 Atualizar
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Filtros */}
                             <div className="bg-gray-50 p-4 rounded-lg mb-6">
                                 <h3 className="font-semibold mb-3">Filtros</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4"> {/* ✅ Corrigido para 4 colunas */}
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium mb-1">Status Pagamento</label>
                                         <select
@@ -473,6 +610,7 @@ export default function EventManagementPage() {
                                                         <td className="border border-gray-300 p-2">
                                                             {registration.createdAt.toLocaleDateString('pt-BR')}
                                                         </td>
+
                                                         <td className="border border-gray-300 p-2">
                                                             {registration.status === 'pending' && (
                                                                 <div className="flex gap-2">
@@ -496,7 +634,21 @@ export default function EventManagementPage() {
                                                                 </div>
                                                             )}
                                                             {registration.status === 'approved' && (
-                                                                <span className="text-green-600 text-sm">✓ Aprovado</span>
+                                                                <div className="flex flex-col gap-1">
+                                                                    <span className="text-green-600 text-sm">✓ Aprovado</span>
+                                                                    {registration.paymentStatus === 'pending' && (
+                                                                        <button
+                                                                            onClick={() => handleGeneratePixPayment(registration)}
+                                                                            disabled={generatingPayment === registration.id}
+                                                                            className="bg-blue-500 text-white px-2 py-1 rounded text-xs hover:bg-blue-600 disabled:opacity-50 mt-1"
+                                                                        >
+                                                                            {generatingPayment === registration.id ? 'Gerando PIX...' : '💰 Gerar PIX'}
+                                                                        </button>
+                                                                    )}
+                                                                    {registration.paymentStatus === 'paid' && (
+                                                                        <span className="text-green-600 text-sm">✅ Pago</span>
+                                                                    )}
+                                                                </div>
                                                             )}
                                                             {registration.status === 'rejected' && (
                                                                 <div>
@@ -520,6 +672,98 @@ export default function EventManagementPage() {
                     )}
                 </div>
             </div>
+
+            {showPixModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white p-6 rounded-lg max-w-md w-full">
+                        <h3 className="text-lg font-bold mb-4 text-center">
+                            PIX para {showPixModal.registration.userName}
+                        </h3>
+
+                        <div className="text-center mb-4">
+                            {showPixModal.pixData.qr_code_base64 ? (
+                                <Image
+                                    src={`data:image/png;base64,${showPixModal.pixData.qr_code_base64}`}
+                                    alt="QR Code PIX"
+                                    width={192}
+                                    height={192}
+                                    className="mx-auto mb-4"
+                                />
+                            ) : (
+                                <Image
+                                    src={showPixModal.pixData.qr_code}
+                                    alt="QR Code PIX"
+                                    width={192}
+                                    height={192}
+                                    className="mx-auto mb-4"
+                                />
+                            )}
+
+                            <p className="text-2xl font-bold text-green-600 mb-2">
+                                R$ {showPixModal.event.price.toFixed(2)}
+                            </p>
+
+                            <p className="text-sm text-gray-600 mb-4">
+                                Escaneie o QR Code ou copie o código PIX
+                            </p>
+
+                            <div className="bg-gray-100 p-3 rounded-lg mb-4">
+                                <p className="text-xs text-gray-500 mb-1">Código PIX:</p>
+                                <p className="text-sm font-mono break-all">
+                                    {showPixModal.pixData.qr_code}
+                                </p>
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(showPixModal.pixData.qr_code);
+                                        alert('Código PIX copiado!');
+                                    }}
+                                    className="text-blue-600 text-xs mt-2"
+                                >
+                                    📋 Copiar código
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                onClick={() => {
+                                    navigator.clipboard.writeText(showPixModal.pixData.qr_code);
+                                    alert('Código PIX copiado!');
+                                }}
+                                className="bg-gray-500 text-white px-4 py-2 rounded text-sm"
+                            >
+                                📋 Copiar PIX
+                            </button>
+
+                            <a
+                                href={showPixModal.pixData.ticket_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="bg-blue-600 text-white px-4 py-2 rounded text-sm text-center"
+                            >
+                                🔗 Ver comprovante
+                            </a>
+
+                            <button
+                                onClick={() => {
+                                    loadEventsWithRegistrations();
+                                    setShowPixModal(null);
+                                }}
+                                className="bg-green-600 text-white px-4 py-2 rounded text-sm col-span-2"
+                            >
+                                ✅ Pagamento realizado
+                            </button>
+                        </div>
+
+                        <button
+                            onClick={() => setShowPixModal(null)}
+                            className="mt-4 text-gray-500 text-sm w-full"
+                        >
+                            Fechar
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

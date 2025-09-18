@@ -16,6 +16,15 @@ export async function POST(request: NextRequest) {
             additional_info
         } = body
 
+        // ✅ VALIDAÇÃO CRÍTICA: Verificar se registrationId existe
+        if (!metadata?.registrationId) {
+            console.error('❌ registrationId não encontrado nos metadados');
+            return NextResponse.json(
+                { error: 'ID da inscrição é obrigatório' },
+                { status: 400 }
+            );
+        }
+
         // Configurar cliente do Mercado Pago
         const client = new MercadoPagoConfig({
             accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN!,

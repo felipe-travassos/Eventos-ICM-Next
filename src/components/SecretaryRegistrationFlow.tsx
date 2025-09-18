@@ -7,17 +7,12 @@ import AddSeniorModal from './AddSeniorModal';
 import PaymentModal from './PaymentModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { doc, getDoc } from 'firebase/firestore';
-
 import { db } from '@/lib/firebase/config';
-
-
 
 interface SecretaryRegistrationFlowProps {
     event: any;
     onComplete: () => void;
 }
-
-
 
 export default function SecretaryRegistrationFlow({
     event,
@@ -28,14 +23,17 @@ export default function SecretaryRegistrationFlow({
     const [paymentData, setPaymentData] = useState<any>(null);
     const [loading, setLoading] = useState(false);
     const { userData, currentUser } = useAuth();
-    const [currentChurch, setCurrentChurch] = useState(null);
+    const [currentChurch, setCurrentChurch] = useState<any>(null);
 
     useEffect(() => {
         const fetchChurchData = async () => {
             if (currentUser?.churchId) {
                 const churchDoc = await getDoc(doc(db, 'churches', currentUser.churchId));
                 if (churchDoc.exists()) {
-                    setCurrentChurch(churchDoc.data());
+                    setCurrentChurch({
+                        id: churchDoc.id,
+                        ...churchDoc.data()
+                    });
                 }
             }
         };
@@ -52,8 +50,20 @@ export default function SecretaryRegistrationFlow({
         setShowAddModal(false);
     };
 
+    const handleCopyPix = () => {
+        if (paymentData?.qrCode) {
+            navigator.clipboard.writeText(paymentData.qrCode);
+            alert('Código PIX copiado!');
+        }
+    };
+
+    const handleCheckStatus = async () => {
+        // Implementar lógica para verificar status do pagamento
+        alert('Funcionalidade de verificação em desenvolvimento');
+    };
+
     const handleRegistration = async () => {
-        if (!selectedSenior || !userData) return;
+        if (!selectedSenior || !userData || !currentChurch) return;
 
         setLoading(true);
 
@@ -103,8 +113,8 @@ export default function SecretaryRegistrationFlow({
                     userEmail: selectedSenior.email,
                     userPhone: selectedSenior.phone,
                     userCpf: selectedSenior.cpf,
-                    churchName: selectedSenior.church,
-                    pastorName: selectedSenior.pastor,
+                    churchName: currentChurch.name,
+                    pastorName: currentChurch.pastor,
                     paymentId: paymentResult.id
                 })
             });
@@ -117,9 +127,11 @@ export default function SecretaryRegistrationFlow({
 
             // 3. Mostrar QR Code do PIX
             setPaymentData({
-                ...paymentResult,
-                senior: selectedSenior,
-                event: event,
+                amount: event.price,
+                description: `Inscrição: ${event.title} - ${selectedSenior.name}`,
+                qrCode: paymentResult.qr_code,
+                qrCodeBase64: paymentResult.qr_code_base64,
+                ticketUrl: paymentResult.ticket_url,
                 registrationId: registrationResult.registrationId
             });
 
@@ -130,7 +142,7 @@ export default function SecretaryRegistrationFlow({
         }
     };
 
-    const handlePaymentComplete = () => {
+    const handlePaymentClose = () => {
         setPaymentData(null);
         setSelectedSenior(null);
         onComplete();
@@ -167,7 +179,7 @@ export default function SecretaryRegistrationFlow({
                         <p><span className="font-medium">Nome:</span> {selectedSenior.name}</p>
                         <p><span className="font-medium">Idade:</span> {selectedSenior.age} anos</p>
                         <p><span className="font-medium">Telefone:</span> {selectedSenior.phone}</p>
-                        <p><span className="font-medium">Igreja:</span> {selectedSenior.church}</p>
+                        <p><span className="font-medium">Igreja:</span> {currentChurch?.name || selectedSenior.church}</p>
                     </div>
 
                     <div className="mt-4 bg-yellow-50 p-3 rounded-lg">
@@ -178,7 +190,7 @@ export default function SecretaryRegistrationFlow({
 
                     <button
                         onClick={handleRegistration}
-                        disabled={loading}
+                        disabled={loading || !currentChurch}
                         className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:bg-blue-400 mt-4 transition-colors"
                     >
                         {loading ? 'Processando...' : 'Realizar Inscrição'}
@@ -186,23 +198,24 @@ export default function SecretaryRegistrationFlow({
                 </div>
             )}
 
-            {showAddModal && (
+            {showAddModal && currentChurch && (
                 <AddSeniorModal
-                    isOpen={isModalOpen}
-                    onClose={() => setIsModalOpen(false)}
+                    isOpen={showAddModal}
+                    onClose={() => setShowAddModal(false)}
                     onSeniorAdded={handleSeniorAdded}
-                    secretaryId={currentUser.uid} // ID do usuário logado
-                    userChurchId={currentUser.churchId} // ID da igreja do usuário
-                    userChurchName={currentUser.churchName} // Nome da igreja do usuário
-                    pastorName={currentChurch?.pastorName} // Nome do pastor (buscar da coleção churches)
+                    secretaryId={userData?.uid || ''}
+                    churchId={currentChurch.id}
+                    churchName={currentChurch.name}
+                    pastorName={currentChurch.pastor}
                 />
             )}
 
             {paymentData && (
                 <PaymentModal
                     paymentData={paymentData}
-                    onClose={handlePaymentComplete}
-                    onPaymentComplete={handlePaymentComplete}
+                    onClose={handlePaymentClose}
+                    onCopyPix={handleCopyPix}
+                    onCheckStatus={handleCheckStatus}
                 />
             )}
         </div>

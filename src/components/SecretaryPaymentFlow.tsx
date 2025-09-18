@@ -1,17 +1,24 @@
 //src\components\SecretaryPaymentFlow.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import SeniorAutocomplete from './SeniorAutocomplete';
 import AddSeniorModal from './AddSeniorModal';
-import PaymentModal from './PaymentModal';
-import EventSelector from './events/EventSelector';
 import { useAuth } from '@/contexts/AuthContext';
 import { Event } from '@/types';
+import EventSelector from './events/EventSelector';
+import { db } from '@/lib/firebase/config';
+import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 
 interface SecretaryPaymentFlowProps {
     events: Event[];
     onComplete: () => void;
+}
+
+interface ChurchInfo {
+    churchId: string;
+    churchName: string;
+    pastorName: string;
 }
 
 export default function SecretaryPaymentFlow({
@@ -21,10 +28,36 @@ export default function SecretaryPaymentFlow({
     const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
     const [selectedSenior, setSelectedSenior] = useState<any>(null);
     const [showAddModal, setShowAddModal] = useState(false);
-    const [paymentData, setPaymentData] = useState<any>(null);
-    const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [churchInfo, setChurchInfo] = useState<ChurchInfo | null>(null);
+    const [loadingChurch, setLoadingChurch] = useState(false);
     const { userData } = useAuth();
+
+    // Buscar informações da igreja
+    useEffect(() => {
+        const fetchChurchInfo = async () => {
+            if (!userData?.churchId) return;
+
+            setLoadingChurch(true);
+            try {
+                const response = await fetch(`/api/churches/${userData.churchId}`);
+                if (response.ok) {
+                    const churchData = await response.json();
+                    setChurchInfo({
+                        churchId: userData.churchId,
+                        churchName: churchData.name,
+                        pastorName: churchData.pastorName
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao buscar informações da igreja:', error);
+            } finally {
+                setLoadingChurch(false);
+            }
+        };
+
+        fetchChurchInfo();
+    }, [userData?.churchId]);
 
     const handleEventSelect = (event: Event) => {
         setSelectedEvent(event);
@@ -40,122 +73,83 @@ export default function SecretaryPaymentFlow({
         setShowAddModal(false);
     };
 
-    const handlePayment = async () => {
+    const handleRegistration = async () => {
         if (!selectedSenior || !selectedEvent || !userData) return;
 
         setLoading(true);
 
         try {
-            // 1. Primeiro verificar se já existe uma inscrição
-            const checkResponse = await fetch(`/api/registrations/check?eventId=${selectedEvent.id}&seniorId=${selectedSenior.id}`);
+            console.log('📝 Iniciando inscrição direta no Firestore...');
 
-            let existingRegistration = null;
+            // 1. Verificar se já existe uma inscrição
+            const registrationsRef = collection(db, 'registrations');
+            const q = query(
+                registrationsRef,
+                where('eventId', '==', selectedEvent.id),
+                where('userId', '==', selectedSenior.id)
+            );
 
-            if (checkResponse.ok) {
-                const data = await checkResponse.json();
-                existingRegistration = data || null; // ✅ Garante null se vazio
-            }
+            const querySnapshot = await getDocs(q);
 
-            // 2. Se existir inscrição e não estiver aprovada, bloquear
-            if (existingRegistration && existingRegistration.status !== 'approved') {
-                alert('⏳ Esta inscrição ainda não foi aprovada. Aguarde a liberação do secretário responsável.');
+            if (!querySnapshot.empty) {
+                const existingRegistration = querySnapshot.docs[0].data();
+                const statusMessages: { [key: string]: string } = {
+                    'pending': '⏳ Esta inscrição está aguardando aprovação.',
+                    'approved': '✅ Esta inscrição já foi aprovada e está ativa.',
+                    'rejected': '❌ Esta inscrição foi rejeitada.'
+                };
+
+                const statusMessage = statusMessages[existingRegistration.status] || 'ℹ️ Esta inscrição já existe.';
+                alert(statusMessage);
                 setLoading(false);
                 return;
             }
 
-            // 3. Se não existir inscrição, criar uma como pendente
-            if (!existingRegistration) {
-                const registrationResponse = await fetch('/api/secretary/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        secret: 'apdsj123456',
-                        secretaryId: userData.uid,
-                        secretaryName: userData.name,
-                        eventId: selectedEvent.id,
-                        eventName: selectedEvent.title,
-                        seniorId: selectedSenior.id,
-                        userName: selectedSenior.name,
-                        userEmail: selectedSenior.email,
-                        userPhone: selectedSenior.phone,
-                        userCpf: selectedSenior.cpf,
-                        churchName: selectedSenior.church,
-                        pastorName: selectedSenior.pastor,
-                        status: 'pending',
-                        paymentStatus: 'pending'
-                    })
-                });
+            // 2. Criar nova inscrição diretamente no Firestore
+            const registrationData = {
+                // Dados do evento
+                eventId: selectedEvent.id,
+                eventName: selectedEvent.title,
 
-                if (!registrationResponse.ok) {
-                    const errorData = await registrationResponse.json();
-                    throw new Error(errorData.error || 'Erro ao criar inscrição');
-                }
+                // Dados do participante (idoso)
+                userId: selectedSenior.id,
+                userName: selectedSenior.name,
+                userEmail: selectedSenior.email || '',
+                userPhone: selectedSenior.phone,
+                userCpf: selectedSenior.cpf,
+                userChurch: selectedSenior.churchId || '', // ID da igreja se tiver
+                churchName: selectedSenior.church,         // Nome da igreja
+                pastorName: selectedSenior.pastor,
 
-                alert('✅ Inscrição enviada para aprovação! Aguarde a liberação antes de realizar o pagamento.');
-                setLoading(false);
-                return;
-            }
+                // Status
+                status: 'pending',
+                paymentStatus: 'pending',
 
-            // 4. Só criar pagamento se a inscrição estiver aprovada
-            if (existingRegistration.status === 'approved') {
-                // ✅ Seu código de pagamento PIX aqui (mantido igual)
-                const paymentResponse = await fetch('/api/pix/create', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        transaction_amount: selectedEvent.price,
-                        description: `Inscrição: ${selectedEvent.title} - ${selectedSenior.name}`,
-                        payment_method_id: 'pix',
-                        payer: {
-                            email: selectedSenior.email || 'idoso@igreja.com',
-                            first_name: selectedSenior.name.split(' ')[0],
-                            last_name: selectedSenior.name.split(' ').slice(1).join(' ') || '',
-                        },
-                        metadata: {
-                            registrationType: 'senior',
-                            seniorId: selectedSenior.id,
-                            seniorName: selectedSenior.name,
-                            eventId: selectedEvent.id,
-                            eventName: selectedEvent.title,
-                            secretaryId: userData.uid
-                        }
-                    })
-                });
+                // Dados do secretário
+                secretaryId: userData.uid,
+                secretaryName: userData.name,
 
-                const paymentResult = await paymentResponse.json();
+                // Timestamps
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
 
-                if (!paymentResponse.ok) {
-                    throw new Error(paymentResult.error || 'Erro ao criar pagamento');
-                }
+            console.log('💾 Salvando inscrição no Firestore:', registrationData);
 
-                // ✅ Atualizar a inscrição existente com o ID do pagamento
-                const updateResponse = await fetch('/api/secretary/update-registration', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        registrationId: existingRegistration.id,
-                        paymentId: paymentResult.id,
-                        paymentStatus: 'pending'
-                    })
-                });
+            // Salvar diretamente no Firestore
+            const docRef = await addDoc(collection(db, 'registrations'), registrationData);
 
-                if (!updateResponse.ok) {
-                    throw new Error('Erro ao atualizar inscrição');
-                }
+            console.log('✅ Inscrição salva com ID:', docRef.id);
 
-                // ✅ Mostrar modal de pagamento
-                setPaymentData({
-                    ...paymentResult,
-                    senior: selectedSenior,
-                    event: selectedEvent,
-                    registrationId: existingRegistration.id
-                });
-                setShowPaymentModal(true);
-            }
+            alert('✅ Inscrição enviada para aprovação! Aguarde a liberação do secretário responsável.');
+
+            // Limpar seleções após sucesso
+            setSelectedSenior(null);
+            setSelectedEvent(null);
 
         } catch (error: any) {
-            console.error('Erro no processo:', error);
-            alert('Erro: ' + (error.message || 'Erro desconhecido'));
+            console.error('❌ Erro ao salvar inscrição:', error);
+            alert('Erro: ' + (error.message || 'Erro ao salvar inscrição.'));
         } finally {
             setLoading(false);
         }
@@ -172,6 +166,7 @@ export default function SecretaryPaymentFlow({
                 <h3 className="font-semibold text-blue-800 mb-2 text-lg">👨‍💼 Inscrição de Idoso por Secretário</h3>
                 <p className="text-blue-700 text-sm">
                     Selecione um evento disponível e depois escolha ou cadastre um idoso para realizar a inscrição.
+                    A inscrição ficará pendente até aprovação.
                 </p>
             </div>
 
@@ -213,11 +208,11 @@ export default function SecretaryPaymentFlow({
                                 </div>
 
                                 <button
-                                    onClick={handlePayment}
+                                    onClick={handleRegistration}
                                     disabled={loading}
                                     className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {loading ? '⏳ Processando...' : `💰 Realizar Inscrição - R$ ${selectedEvent.price?.toFixed(2) || '0,00'}`}
+                                    {loading ? '⏳ Enviando...' : '📝 Enviar Inscrição para Aprovação'}
                                 </button>
 
                                 <button
@@ -244,39 +239,11 @@ export default function SecretaryPaymentFlow({
                 onClose={() => setShowAddModal(false)}
                 onSeniorAdded={handleSeniorAdded}
                 secretaryId={userData?.uid || ''}
+                churchId={churchInfo?.churchId || ''}
+                churchName={churchInfo?.churchName || ''}
+                pastorName={churchInfo?.pastorName || ''}
+                loadingChurch={loadingChurch}
             />
-
-            {showPaymentModal && paymentData && (
-                <PaymentModal
-                    paymentData={paymentData}
-                    onClose={() => {
-                        setShowPaymentModal(false);
-                        onComplete();
-                    }}
-                    onCopyPix={() => {
-                        navigator.clipboard.writeText(paymentData.qr_code);
-                        alert('Código PIX copiado!');
-                    }}
-                    onCheckStatus={async () => {
-                        try {
-                            const response = await fetch(
-                                `/api/pix/status?paymentId=${paymentData.paymentId}&registrationId=${paymentData.registrationId}`
-                            );
-                            const status = await response.json();
-
-                            if (status.status === 'approved') {
-                                alert('✅ Pagamento confirmado! Inscrição ativada.');
-                                setShowPaymentModal(false);
-                                onComplete();
-                            } else {
-                                alert('⏳ Pagamento ainda não confirmado. Tente novamente em alguns instantes.');
-                            }
-                        } catch (error) {
-                            alert('Erro ao verificar status do pagamento.');
-                        }
-                    }}
-                />
-            )}
 
             <button
                 onClick={onComplete}

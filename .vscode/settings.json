@@ -3,5 +3,8 @@
     "editor.defaultFoldingRangeProvider": "DavidDai.deepseek-code-generator",
     "[typescriptreact]": {
         "editor.defaultFormatter": "vscode.typescript-language-features"
+    },
+    "[typescript]": {
+        "editor.defaultFormatter": "vscode.typescript-language-features"
     }
 }

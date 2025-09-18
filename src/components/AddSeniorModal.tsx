@@ -1,17 +1,18 @@
 // components/AddSeniorModal.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 interface AddSeniorModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSeniorAdded: (senior: any) => void;
     secretaryId: string;
-    initialName?: string;
-    userChurchId: string; 
-    userChurchName: string; 
+    churchId: string;
+    churchName: string;
     pastorName: string;
+    loadingChurch?: boolean;
+    initialName?: string;
 }
 
 export default function AddSeniorModal({
@@ -19,71 +20,88 @@ export default function AddSeniorModal({
     onClose,
     onSeniorAdded,
     secretaryId,
-    initialName = '',
-    userChurchId,
-    userChurchName,
-    pastorName
+    churchId,
+    churchName,
+    pastorName,
+    loadingChurch = false
 }: AddSeniorModalProps) {
+    const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
-        name: initialName,
+        name: '',
         email: '',
         phone: '',
         cpf: '',
         birthDate: '',
-        church: userChurchName, // Preenche automaticamente
-        pastor: pastorName, // Preenche automaticamente
         address: '',
         healthInfo: ''
     });
-    const [loading, setLoading] = useState(false);
-
-    // Atualiza os campos quando as props mudarem
-    useEffect(() => {
-        setFormData(prev => ({
-            ...prev,
-            church: userChurchName,
-            pastor: pastorName
-        }));
-    }, [userChurchName, pastorName]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Verificar se temos todas as informações da igreja
+        if (!churchId || !churchName || !pastorName) {
+            alert('Erro: Informações da igreja não disponíveis. Tente novamente em alguns instantes.');
+            return;
+        }
+
         setLoading(true);
 
         try {
             const response = await fetch('/api/seniors', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                },
                 body: JSON.stringify({
                     ...formData,
-                    churchId: userChurchId, // Adiciona o ID da igreja
+                    churchId: churchId,
                     secretaryId: secretaryId,
-                    secret: 'secret-key-123' // mesma chave do .env
-                })
+                    church: churchName,
+                    pastor: pastorName,
+                }),
             });
 
-            if (response.ok) {
-                const newSenior = await response.json();
-                onSeniorAdded(newSenior);
-                onClose();
-            } else {
-                throw new Error('Erro ao cadastrar');
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Erro ao cadastrar idoso');
             }
-        } catch (error) {
-            alert('Erro ao cadastrar idoso');
+
+            const newSenior = await response.json();
+            onSeniorAdded(newSenior);
+            onClose();
+
+        } catch (error: any) {
+            alert('Erro ao cadastrar: ' + error.message);
         } finally {
             setLoading(false);
         }
     };
 
+    const handleClose = () => {
+        onClose();
+    };
+
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md">
                 <h2 className="text-xl font-bold mb-4">Cadastrar Novo Idoso</h2>
 
-                <form onSubmit={handleSubmit} className="space-y-3">
+                {loadingChurch && (
+                    <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
+                        <p>Carregando informações da igreja...</p>
+                    </div>
+                )}
+
+                {!loadingChurch && (!churchId || !churchName || !pastorName) && (
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                        <p>Erro: Informações da igreja não disponíveis. Feche e tente novamente.</p>
+                    </div>
+                )}
+
+                <form onSubmit={handleSubmit}>
                     <div>
                         <label className="block text-sm font-medium mb-1">Nome *</label>
                         <input
@@ -92,6 +110,18 @@ export default function AddSeniorModal({
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             className="w-full p-2 border border-gray-300 rounded"
+                            placeholder="Digite o nome completo"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Email</label>
+                        <input
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            className="w-full p-2 border border-gray-300 rounded"
+                            placeholder="email@exemplo.com"
                         />
                     </div>
 
@@ -103,6 +133,7 @@ export default function AddSeniorModal({
                             value={formData.phone}
                             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                             className="w-full p-2 border border-gray-300 rounded"
+                            placeholder="(11) 99999-9999"
                         />
                     </div>
 
@@ -114,28 +145,18 @@ export default function AddSeniorModal({
                             value={formData.cpf}
                             onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
                             className="w-full p-2 border border-gray-300 rounded"
+                            placeholder="000.000.000-00"
+                            maxLength={14}
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium mb-1">Igreja *</label>
+                        <label className="block text-sm font-medium mb-1">Data de Nascimento</label>
                         <input
-                            type="text"
-                            required
-                            value={formData.church}
-                            readOnly // Torna o campo somente leitura
-                            className="w-full p-2 border border-gray-300 rounded bg-gray-100"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Pastor *</label>
-                        <input
-                            type="text"
-                            required
-                            value={formData.pastor}
-                            readOnly // Torna o campo somente leitura
-                            className="w-full p-2 border border-gray-300 rounded bg-gray-100"
+                            type="date"
+                            value={formData.birthDate}
+                            onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                            className="w-full p-2 border border-gray-300 rounded"
                         />
                     </div>
 
@@ -146,6 +167,7 @@ export default function AddSeniorModal({
                             value={formData.address}
                             onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                             className="w-full p-2 border border-gray-300 rounded"
+                            placeholder="Rua, número, bairro, cidade"
                         />
                     </div>
 
@@ -156,20 +178,22 @@ export default function AddSeniorModal({
                             onChange={(e) => setFormData({ ...formData, healthInfo: e.target.value })}
                             className="w-full p-2 border border-gray-300 rounded"
                             rows={3}
+                            placeholder="Alergias, medicamentos, condições médicas..."
                         />
                     </div>
 
                     <div className="flex gap-3 pt-4">
                         <button
                             type="button"
-                            onClick={onClose}
+                            onClick={handleClose}
                             className="flex-1 bg-gray-500 text-white py-2 rounded"
+                            disabled={loading}
                         >
                             Cancelar
                         </button>
                         <button
                             type="submit"
-                            disabled={loading}
+                            disabled={loading || !churchId}
                             className="flex-1 bg-blue-600 text-white py-2 rounded disabled:opacity-50"
                         >
                             {loading ? 'Cadastrando...' : 'Cadastrar'}
