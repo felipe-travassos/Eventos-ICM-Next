@@ -1,4 +1,3 @@
-// app/admin/users/page.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -55,6 +54,32 @@ export default function AdminUsersPage() {
         }
     };
 
+    const getRoleColor = (role: UserRole) => {
+        switch (role) {
+            case 'pastor':
+                return 'bg-purple-100 text-purple-800';
+            case 'secretario_local':
+                return 'bg-blue-100 text-blue-800';
+            case 'secretario_regional':
+                return 'bg-green-100 text-green-800';
+            default:
+                return 'bg-gray-100 text-gray-800';
+        }
+    };
+
+    const getRoleLabel = (role: UserRole) => {
+        switch (role) {
+            case 'pastor':
+                return 'Pastor';
+            case 'secretario_local':
+                return 'Secretário Local';
+            case 'secretario_regional':
+                return 'Secretário Regional';
+            default:
+                return 'Membro';
+        }
+    };
+
     if (userData?.role !== 'secretario_regional') {
         return (
             <div className="container mx-auto p-4">
@@ -80,37 +105,87 @@ export default function AdminUsersPage() {
         <div className="container mx-auto p-4">
             <h1 className="text-2xl font-bold mb-6">Gerenciar Usuários</h1>
 
-            <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
-                <table className="w-full min-w-full">
-                    <thead>
-                        <tr className="border-b">
-                            <th className="text-left p-3">Nome</th>
-                            <th className="text-left p-3">Email</th>
-                            <th className="text-left p-3">Função Atual</th>
-                            <th className="text-left p-3">Alterar Função</th>
-                            <th className="text-left p-3">Data de Cadastro</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {users.map((user) => (
-                            <tr key={user.id} className="border-b hover:bg-gray-50">
-                                <td className="p-3">{user.name}</td>
-                                <td className="p-3">{user.email}</td>
-                                <td className="p-3">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${user.role === 'pastor' ? 'bg-purple-100 text-purple-800' :
-                                        user.role === 'secretario_local' ? 'bg-blue-100 text-blue-800' :
-                                            user.role === 'secretario_regional' ? 'bg-green-100 text-green-800' :
-                                                'bg-gray-100 text-gray-800'
-                                        }`}>
-                                        {user.role}
+            <div className="bg-white p-6 rounded-lg shadow-md">
+                {/* Tabela para desktop */}
+                <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full min-w-full">
+                        <thead>
+                            <tr className="border-b">
+                                <th className="text-left p-3">Nome</th>
+                                <th className="text-left p-3">Email</th>
+                                <th className="text-left p-3">Função Atual</th>
+                                <th className="text-left p-3">Alterar Função</th>
+                                <th className="text-left p-3">Data de Cadastro</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {users.map((user) => (
+                                <tr key={user.id} className="border-b hover:bg-gray-50">
+                                    <td className="p-3">{user.name}</td>
+                                    <td className="p-3">{user.email}</td>
+                                    <td className="p-3">
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
+                                            {getRoleLabel(user.role)}
+                                        </span>
+                                    </td>
+                                    <td className="p-3">
+                                        <select
+                                            value={user.role}
+                                            onChange={(e) => handleRoleChange(user.id, e.target.value as UserRole)}
+                                            disabled={updating === user.id}
+                                            className="border rounded px-2 py-1 disabled:opacity-50 text-sm"
+                                        >
+                                            <option value="membro">Membro</option>
+                                            <option value="pastor">Pastor</option>
+                                            <option value="secretario_local">Secretário Local</option>
+                                            <option value="secretario_regional">Secretário Regional</option>
+                                        </select>
+                                        {updating === user.id && (
+                                            <span className="ml-2 text-sm text-gray-500">Atualizando...</span>
+                                        )}
+                                    </td>
+                                    <td className="p-3 text-sm">
+                                        {user.createdAt.toLocaleDateString('pt-BR')}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Cards para mobile */}
+                <div className="md:hidden space-y-4">
+                    {users.map((user) => (
+                        <div key={user.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                            <div className="space-y-3">
+                                <div>
+                                    <h3 className="font-semibold text-gray-800">{user.name}</h3>
+                                    <p className="text-sm text-gray-600">{user.email}</p>
+                                </div>
+
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-600">Função:</span>
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
+                                        {getRoleLabel(user.role)}
                                     </span>
-                                </td>
-                                <td className="p-3">
+                                </div>
+
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-600">Cadastro:</span>
+                                    <span className="text-sm text-gray-800">
+                                        {user.createdAt.toLocaleDateString('pt-BR')}
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Alterar Função:
+                                    </label>
                                     <select
                                         value={user.role}
                                         onChange={(e) => handleRoleChange(user.id, e.target.value as UserRole)}
                                         disabled={updating === user.id}
-                                        className="border rounded px-2 py-1 disabled:opacity-50"
+                                        className="w-full border rounded px-3 py-2 text-sm disabled:opacity-50"
                                     >
                                         <option value="membro">Membro</option>
                                         <option value="pastor">Pastor</option>
@@ -118,16 +193,13 @@ export default function AdminUsersPage() {
                                         <option value="secretario_regional">Secretário Regional</option>
                                     </select>
                                     {updating === user.id && (
-                                        <span className="ml-2 text-sm text-gray-500">Atualizando...</span>
+                                        <span className="text-xs text-gray-500 mt-1 block">Atualizando...</span>
                                     )}
-                                </td>
-                                <td className="p-3">
-                                    {user.createdAt.toLocaleDateString('pt-BR')}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
 
                 {users.length === 0 && (
                     <div className="text-center py-8">

@@ -14,6 +14,7 @@ import {
     deleteImage,
     extractImagePathFromURL
 } from '@/lib/firebase/storage';
+import bannerImage from '@/assets/fotoDM.png';
 
 export default function AdminEvents() {
     const [title, setTitle] = useState('');
@@ -305,8 +306,24 @@ export default function AdminEvents() {
 
     return (
         <div className="container mx-auto p-4">
+            {/* Banner com imagem */}
+            <div className="relative w-full h-48 md:h-64 mb-8 rounded-lg overflow-hidden">
+                <Image
+                    src={bannerImage}
+                    alt="Banner Eventos ICM"
+                    fill
+                    className="object-cover"
+                    priority
+                />
+                <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
+                    <h1 className="text-3xl md:text-4xl font-bold text-white text-center">
+                        Gerenciamento de Eventos
+                    </h1>
+                </div>
+            </div>
+
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold">Gerenciar Eventos</h1>
+                <h2 className="text-2xl font-bold text-gray-800">Administrar Eventos</h2>
 
                 {!showForm && (
                     <button
@@ -320,9 +337,9 @@ export default function AdminEvents() {
 
             {showForm && (
                 <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-                    <h2 className="text-xl font-semibold mb-4">
+                    <h3 className="text-xl font-semibold mb-4">
                         {editingEvent ? 'Editar Evento' : 'Cadastrar Novo Evento'}
-                    </h2>
+                    </h3>
 
                     <form onSubmit={handleSubmit} className="max-w-2xl">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -453,11 +470,6 @@ export default function AdminEvents() {
                                             className="object-contain rounded"
                                         />
                                     </div>
-                                    {/* <img
-                                        src={editingEvent.imageURL}
-                                        alt="Imagem atual do evento"
-                                        className="h-20 object-cover rounded mt-1"
-                                    /> */}
                                 </div>
                             )}
                         </div>
@@ -508,9 +520,9 @@ export default function AdminEvents() {
             </div>
 
             <div className="mt-8">
-                <h2 className="text-xl font-bold mb-4">
+                <h3 className="text-xl font-bold mb-4 text-gray-800">
                     {activeTab === 'active' ? 'Eventos Ativos' : 'Eventos Encerrados'}
-                </h2>
+                </h3>
 
                 {(activeTab === 'active' ? activeEvents : endedEvents).length === 0 ? (
                     <div className="text-center py-8 bg-gray-50 rounded-lg">
@@ -540,7 +552,7 @@ export default function AdminEvents() {
                                 )}
 
                                 <div className="flex justify-between items-start mb-3">
-                                    <h3 className="text-lg font-bold text-gray-800">{event.title}</h3>
+                                    <h4 className="text-lg font-bold text-gray-800">{event.title}</h4>
                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${event.status === 'active'
                                         ? 'bg-green-100 text-green-800'
                                         : 'bg-gray-100 text-gray-800'

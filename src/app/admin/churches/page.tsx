@@ -7,6 +7,8 @@ import { Church } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image'; // Import do Image do Next.js
+import bannerImage from '@/assets/icm-ghibli.png'; // Import da imagem
 
 export default function AdminChurches() {
     const [name, setName] = useState('');
@@ -91,29 +93,23 @@ export default function AdminChurches() {
                 address,
                 region,
                 pastorId: pastorId || null,
-                pastorName: selectedPastor?.name || null, // Adicionar nome do pastor
+                pastorName: selectedPastor?.name || null,
                 updatedAt: new Date()
             };
 
             if (editingChurch) {
-                // Atualizar igreja existente
                 await updateDoc(doc(db, 'churches', editingChurch.id), churchData);
-
-                // Atualizar estado local
                 setChurches(prev => prev.map(church =>
                     church.id === editingChurch.id
                         ? { ...church, ...churchData }
                         : church
                 ));
-
                 alert('Igreja atualizada com sucesso!');
             } else {
-                // Nova igreja
                 const newChurch = {
                     ...churchData,
                     createdAt: new Date()
                 };
-
                 const docRef = await addDoc(collection(db, 'churches'), newChurch);
                 setChurches(prev => [...prev, { id: docRef.id, ...newChurch }]);
                 alert('Igreja cadastrada com sucesso!');
@@ -143,8 +139,6 @@ export default function AdminChurches() {
 
         try {
             await deleteDoc(doc(db, 'churches', churchId));
-
-            // Atualizar lista de igrejas
             setChurches(churches.filter(church => church.id !== churchId));
             alert('Igreja excluída com sucesso!');
         } catch (error) {
@@ -184,24 +178,31 @@ export default function AdminChurches() {
 
     return (
         <div className="container mx-auto p-4">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold">Gerenciar Igrejas</h1>
+            {/* Banner com imagem */}
+            <div className="relative w-full h-48 md:h-64 mb-8 rounded-lg overflow-hidden">
+                <Image
+                    src={bannerImage}
+                    alt="Banner ICM Ghibli"
+                    fill
+                    className="object-cover"
+                    priority
+                />
+                <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
+                    <h1 className="text-3xl md:text-4xl font-bold text-white text-center">
+                        Gerenciamento de Igrejas
+                    </h1>
+                </div>
+            </div>
 
-                {!showForm && churches.length > 0 && (
-                    <button
-                        onClick={handleNewChurch}
-                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
-                    >
-                        Cadastrar Nova Igreja
-                    </button>
-                )}
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Administrar Igrejas</h2>
             </div>
 
             {showForm && (
                 <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-                    <h2 className="text-xl font-semibold mb-4">
+                    <h3 className="text-xl font-semibold mb-4">
                         {editingChurch ? 'Editar Igreja' : 'Cadastrar Nova Igreja'}
-                    </h2>
+                    </h3>
 
                     <form onSubmit={handleSubmit} className="max-w-2xl">
                         <div className="mb-4">
@@ -276,7 +277,7 @@ export default function AdminChurches() {
             )}
 
             <div className="mt-8">
-                <h2 className="text-xl font-bold mb-4">Igrejas Cadastradas</h2>
+                <h3 className="text-xl font-bold mb-4 text-gray-800">Igrejas Cadastradas</h3>
 
                 {churches.length === 0 ? (
                     <div className="text-center py-8 bg-gray-50 rounded-lg">
@@ -296,7 +297,7 @@ export default function AdminChurches() {
 
                                 return (
                                     <div key={church.id} className="bg-white p-4 rounded-lg shadow border border-gray-200">
-                                        <h3 className="text-lg font-bold text-gray-800">{church.name}</h3>
+                                        <h4 className="text-lg font-bold text-gray-800">{church.name}</h4>
                                         <p className="text-gray-600 mt-1">
                                             <strong>Endereço:</strong> {church.address}
                                         </p>

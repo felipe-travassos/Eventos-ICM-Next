@@ -113,12 +113,13 @@ export interface User {
 
 export interface Church {
     id: string;
-    name: string;
-    address?: string;
-    pastorId?: string;
-    pastorName?: string;
-    createdAt?: Date;
-    updatedAt?: Date;
+  name: string;
+  address: string;
+  region: string; 
+  pastorId: string | null;
+  pastorName: string | null;
+  createdAt: Date;
+  updatedAt?: Date;
 }
 
 export type UserRole = 'membro' | 'secretario_local' | 'pastor' | 'secretario_regional';
