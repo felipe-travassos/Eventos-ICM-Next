@@ -3,7 +3,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
 import { Event, EventRegistration } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,61 +28,6 @@ const ChevronRightIcon = () => (
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
   </svg>
 );
-
-/**
- * Formata uma data para o formato brasileiro (DD/MM/YYYY)
- */
-const formatDateSafe = (date: any): string => {
-  if (!date) return 'Data não informada';
-
-  try {
-    if (date instanceof Date) {
-      return date.toLocaleDateString('pt-BR');
-    }
-    if (typeof date === 'string') {
-      return new Date(date).toLocaleDateString('pt-BR');
-    }
-    if (date && typeof date.toDate === 'function') {
-      return date.toDate().toLocaleDateString('pt-BR');
-    }
-    return 'Data inválida';
-  } catch (error) {
-    console.error('Erro ao formatar data:', error, date);
-    return 'Data inválida';
-  }
-};
-
-/**
- * Formata o horário para o formato brasileiro (HH:MM)
- */
-const formatTimeSafe = (date: any): string => {
-  if (!date) return '';
-
-  try {
-    if (date instanceof Date) {
-      return date.toLocaleTimeString('pt-BR', {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    }
-    if (typeof date === 'string') {
-      return new Date(date).toLocaleTimeString('pt-BR', {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    }
-    if (date && typeof date.toDate === 'function') {
-      return date.toDate().toLocaleTimeString('pt-BR', {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    }
-    return '';
-  } catch (error) {
-    console.error('Erro ao formatar hora:', error, date);
-    return '';
-  }
-};
 
 export default function HomePage() {
 
@@ -239,7 +183,6 @@ export default function HomePage() {
       setRegisteringEventId(null);
     }
   };
-
 
   /**
    * Carrossel

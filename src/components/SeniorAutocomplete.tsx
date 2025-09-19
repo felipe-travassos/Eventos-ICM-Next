@@ -89,6 +89,13 @@ export default function SeniorAutocomplete({
   }, [searchTerm, searchSeniors]);
 
   const handleSelectSenior = (senior: Senior) => {
+    // ✅ Garantir que o senior tem um ID válido
+    if (!senior.id) {
+      console.error('Idoso selecionado não possui ID válido:', senior);
+      alert('Erro: Idoso selecionado é inválido.');
+      return;
+    }
+
     onSeniorSelect(senior);
     setSearchTerm(senior.name);
     setShowDropdown(false);

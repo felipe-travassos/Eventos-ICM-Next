@@ -63,7 +63,6 @@ const Navbar: React.FC = () => {
 
                         {isSecretary && (
                             <div className="flex items-center space-x-2 ml-2 pl-2 border-l border-white/20">
-                                <NavLink href="/admin/users" icon="👥" text="Usuários" sm />
                                 <NavLink href="/admin/event-management" icon="📋" text="Inscrições" sm />
                             </div>
                         )}
@@ -124,6 +123,7 @@ const Navbar: React.FC = () => {
                         <div className="space-y-2">
                             {currentUser && (
                                 <>
+                                    <p className="px-2 py-1 text-blue-200 text-sm">Usuário</p>
                                     <MobileLink href="/my-registrations" icon="🎫" text="Minhas Inscrições" onClick={closeMenu} />
                                     <MobileLink href="/profile" icon="👤" text="Meu Perfil" onClick={closeMenu} />
                                 </>
@@ -132,7 +132,6 @@ const Navbar: React.FC = () => {
                             {isAdmin && (
                                 <>
                                     <div className="pt-2 border-t border-white/10">
-                                        <p className="px-2 py-1 text-blue-200 text-sm">Administração</p>
                                         <MobileLink href="/admin/events" icon="📅" text="Eventos" onClick={closeMenu} />
                                         <MobileLink href="/admin/churches" icon="⛪" text="Igrejas" onClick={closeMenu} />
                                         <MobileLink href="/admin/users" icon="👥" text="Usuários" onClick={closeMenu} />
@@ -142,12 +141,11 @@ const Navbar: React.FC = () => {
                             )}
 
                             {isSecretary && (
-                            <div className="pt-2 border-t border-white/10">
-                                <p className="px-2 py-1 text-blue-200 text-sm">Administração</p>
-                                <MobileLink href="/admin/users" icon="👥" text="Usuários" onClick={closeMenu} />
-                                <MobileLink href="/admin/event-management" icon="📋" text="Inscrições" onClick={closeMenu} />
-                            </div>
-                        )}
+                                <div className="pt-2 border-t border-white/10">
+                                    <p className="px-2 py-1 text-blue-200 text-sm">Administração</p>
+                                    <MobileLink href="/admin/event-management" icon="📋" text="Inscrições" onClick={closeMenu} />
+                                </div>
+                            )}
                         </div>
 
                         <div className="pt-3 mt-3 border-t border-white/10">

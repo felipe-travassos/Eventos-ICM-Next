@@ -5,8 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-import { Event, EventRegistration } from '@/types';
-
+import { Event, EventRegistration, UserRole } from '@/types';
 import Image from 'next/image';
 
 interface EventWithRegistrations extends Event {
@@ -15,18 +14,24 @@ interface EventWithRegistrations extends Event {
     pendingCount: number;
 }
 
+// ✅ Usar UserRole importado para definir as roles permitidas
+const allowedRoles: UserRole[] = ['pastor', 'secretario_regional', 'secretario_local'];
+
 export default function EventManagementPage() {
 
     const [events, setEvents] = useState<EventWithRegistrations[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedEvent, setSelectedEvent] = useState<EventWithRegistrations | null>(null);
+
     const [filteredRegistrations, setFilteredRegistrations] = useState<EventRegistration[]>([]);
+
     const [filters, setFilters] = useState({
         paymentStatus: 'all',
         churchName: '',
         pastorName: '',
         registrationStatus: 'all',
     });
+
     const [generatingPayment, setGeneratingPayment] = useState<string | null>(null);
     const [showPixModal, setShowPixModal] = useState<{
         registration: EventRegistration;
@@ -37,46 +42,14 @@ export default function EventManagementPage() {
     const [approvalLoading, setApprovalLoading] = useState<string | null>(null);
     const { userData } = useAuth();
 
-    // Função para atualização otimista do status
-    const updateRegistrationStatus = (registrationId: string, newStatus: 'approved' | 'rejected', rejectionReason?: string) => {
-        setEvents(prevEvents =>
-            prevEvents.map(event => {
-                if (event.id === selectedEvent?.id) {
-                    const updatedRegistrations = event.registrations.map(reg =>
-                        reg.id === registrationId
-                            ? {
-                                ...reg,
-                                status: newStatus,
-                                ...(rejectionReason && { rejectionReason })
-                            }
-                            : reg
-                    );
-
-                    return {
-                        ...event,
-                        registrations: updatedRegistrations
-                    };
-                }
-                return event;
-            })
-        );
-
-        setFilteredRegistrations(prev =>
-            prev.map(reg =>
-                reg.id === registrationId
-                    ? {
-                        ...reg,
-                        status: newStatus,
-                        ...(rejectionReason && { rejectionReason })
-                    }
-                    : reg
-            )
-        );
-    };
 
     // Carregar eventos e inscrições
     const loadEventsWithRegistrations = useCallback(async () => {
-        if (!userData || !['pastor', 'secretario_regional'].includes(userData.role)) return;
+        // Verificar se userData existe e tem a role necessária
+        if (!userData || !allowedRoles.includes(userData.role)) {
+            setLoading(false);
+            return;
+        }
 
         try {
             setLoading(true);
@@ -152,12 +125,51 @@ export default function EventManagementPage() {
         } finally {
             setLoading(false);
         }
-    }, [userData]);
+    }, [userData?.role, userData?.uid]);
 
     // ✅ useEffect com dependências corretas
     useEffect(() => {
         loadEventsWithRegistrations();
     }, [loadEventsWithRegistrations]);
+
+
+    // Função para atualização otimista do status
+    const updateRegistrationStatus = (registrationId: string, newStatus: 'approved' | 'rejected', rejectionReason?: string) => {
+        setEvents(prevEvents =>
+            prevEvents.map(event => {
+                if (event.id === selectedEvent?.id) {
+                    const updatedRegistrations = event.registrations.map(reg =>
+                        reg.id === registrationId
+                            ? {
+                                ...reg,
+                                status: newStatus,
+                                ...(rejectionReason && { rejectionReason })
+                            }
+                            : reg
+                    );
+
+                    return {
+                        ...event,
+                        registrations: updatedRegistrations
+                    };
+                }
+                return event;
+            })
+        );
+
+        setFilteredRegistrations(prev =>
+            prev.map(reg =>
+                reg.id === registrationId
+                    ? {
+                        ...reg,
+                        status: newStatus,
+                        ...(rejectionReason && { rejectionReason })
+                    }
+                    : reg
+            )
+        );
+    };
+
 
     const handleGeneratePixPayment = async (registration: EventRegistration) => {
         setGeneratingPayment(registration.id);
@@ -294,12 +306,12 @@ export default function EventManagementPage() {
         }
     };
 
-    // Verificar permissões
+    // ✅ Verificar permissões - Corrigido
     useEffect(() => {
-        if (userData && !['pastor', 'secretario_regional'].includes(userData.role)) {
+        if (userData && !allowedRoles.includes(userData.role)) {
             window.location.href = '/';
         }
-    }, [userData]);
+    }, [userData?.role]);
 
     // Aplicar filtros
     useEffect(() => {
@@ -383,7 +395,8 @@ export default function EventManagementPage() {
         document.body.removeChild(link);
     };
 
-    if (!userData || !['pastor', 'secretario_regional'].includes(userData.role)) {
+    // ✅ Renderização condicional - Corrigida
+    if (!userData || !allowedRoles.includes(userData.role)) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
                 <div className="bg-white p-6 rounded-lg shadow-md text-center">
@@ -393,6 +406,7 @@ export default function EventManagementPage() {
             </div>
         );
     }
+
 
     if (loading) {
         return (

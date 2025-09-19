@@ -1,7 +1,8 @@
 // contexts/AuthContext.tsx
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+
 import {
     User as FirebaseUser,
     onAuthStateChanged,
@@ -10,12 +11,11 @@ import {
     sendPasswordResetEmail,
     signOut
 } from 'firebase/auth';
-import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
+
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase/config';
 import { User, UserRole } from '@/types';
-
 import { useRouter } from 'next/navigation';
-
 
 interface AuthContextType {
     currentUser: FirebaseUser | null;
@@ -39,6 +39,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [userData, setUserData] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
+
+    // ✅ Referência para controlar o unsubscribe
+    const unsubscribeRef = useRef<(() => void) | null>(null);
 
     const login = async (email: string, password: string) => {
         await signInWithEmailAndPassword(auth, email, password);
@@ -85,36 +88,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-
     useEffect(() => {
         const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
             setCurrentUser(user);
 
+            // ✅ Limpar listener anterior antes de criar um novo
+            if (unsubscribeRef.current) {
+                unsubscribeRef.current();
+                unsubscribeRef.current = null;
+            }
+
             if (user) {
                 try {
-                    // Use onSnapshot para listener em tempo real
-                    const unsubscribeUser = onSnapshot(doc(db, 'users', user.uid), (doc) => {
-                        if (doc.exists()) {
-                            const data = doc.data();
-                            setUserData({
-                                id: doc.id,
-                                uid: user.uid,
-                                churchId: data.churchId || '',
-                                cpf: data.cpf || '',
-                                name: data.name || '',
-                                email: data.email || '',
-                                phone: data.phone || '',
-                                role: data.role || 'membro',
-                                createdAt: data.createdAt?.toDate() || new Date(),
-                                updatedAt: data.updatedAt?.toDate() || new Date()
-                            });
-                        } else {
-                            setUserData(null);
-                        }
-                    });
+                    // ✅ Usar getDoc em vez de onSnapshot para evitar updates em tempo real
+                    const userDoc = await getDoc(doc(db, 'users', user.uid));
 
-                    // Retorne a função de unsubscribe para limpar o listener
-                    return unsubscribeUser;
+                    if (userDoc.exists()) {
+                        const data = userDoc.data();
+                        setUserData({
+                            id: userDoc.id,
+                            uid: user.uid,
+                            churchId: data.churchId || '',
+                            cpf: data.cpf || '',
+                            name: data.name || '',
+                            email: data.email || '',
+                            phone: data.phone || '',
+                            role: data.role || 'membro',
+                            createdAt: data.createdAt?.toDate() || new Date(),
+                            updatedAt: data.updatedAt?.toDate() || new Date(),
+                            churchName: data.churchName || ''
+                        });
+                    } else {
+                        setUserData(null);
+                    }
                 } catch (error) {
                     console.error('Erro ao buscar dados do usuário:', error);
                     setUserData(null);
@@ -129,6 +135,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return unsubscribeAuth;
     }, []);
 
+    // ✅ Se realmente precisar de updates em tempo real, use esta versão com cleanup
+    /*
+    useEffect(() => {
+        const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+            setCurrentUser(user);
+
+            // Limpar listener anterior
+            if (unsubscribeRef.current) {
+                unsubscribeRef.current();
+                unsubscribeRef.current = null;
+            }
+
+            if (user) {
+                // Criar novo listener
+                unsubscribeRef.current = onSnapshot(doc(db, 'users', user.uid), (doc) => {
+                    if (doc.exists()) {
+                        const data = doc.data();
+                        setUserData({
+                            id: doc.id,
+                            uid: user.uid,
+                            churchId: data.churchId || '',
+                            cpf: data.cpf || '',
+                            name: data.name || '',
+                            email: data.email || '',
+                            phone: data.phone || '',
+                            role: data.role || 'membro',
+                            createdAt: data.createdAt?.toDate() || new Date(),
+                            updatedAt: data.updatedAt?.toDate() || new Date(),
+                            churchName: data.churchName || ''
+                        });
+                    } else {
+                        setUserData(null);
+                    }
+                    setLoading(false);
+                });
+            } else {
+                setUserData(null);
+                setLoading(false);
+            }
+        });
+
+        return () => {
+            unsubscribeAuth();
+            if (unsubscribeRef.current) {
+                unsubscribeRef.current();
+            }
+        };
+    }, []);
+    */
+
     const contextValue: AuthContextType = {
         currentUser,
         userData,
@@ -142,7 +198,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return (
         <AuthContext.Provider value={contextValue}>
-            {children}
+            {!loading && children}
         </AuthContext.Provider>
     );
 };

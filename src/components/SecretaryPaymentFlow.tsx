@@ -1,4 +1,3 @@
-//src\components\SecretaryPaymentFlow.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -8,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Event } from '@/types';
 import EventSelector from './events/EventSelector';
 import { db } from '@/lib/firebase/config';
-import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { addDoc, collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
 
 interface SecretaryPaymentFlowProps {
     events: Event[];
@@ -30,34 +29,81 @@ export default function SecretaryPaymentFlow({
     const [showAddModal, setShowAddModal] = useState(false);
     const [loading, setLoading] = useState(false);
     const [churchInfo, setChurchInfo] = useState<ChurchInfo | null>(null);
-    const [loadingChurch, setLoadingChurch] = useState(false);
+    const [loadingChurch, setLoadingChurch] = useState(true);
+    const [churchInfoError, setChurchInfoError] = useState<string | null>(null);
     const { userData } = useAuth();
 
-    // Buscar informações da igreja
+    // Buscar informações da igreja diretamente no Firestore
     useEffect(() => {
         const fetchChurchInfo = async () => {
-            if (!userData?.churchId) return;
+            if (!userData?.churchId) {
+                setChurchInfoError('ID da igreja não encontrado');
+                setLoadingChurch(false);
+                return;
+            }
 
             setLoadingChurch(true);
+            setChurchInfoError(null);
+
             try {
-                const response = await fetch(`/api/churches/${userData.churchId}`);
-                if (response.ok) {
-                    const churchData = await response.json();
+                console.log('Buscando igreja no Firestore com ID:', userData.churchId);
+
+                // Buscar documento da igreja diretamente no Firestore
+                const churchDocRef = doc(db, 'churches', userData.churchId);
+                const churchDoc = await getDoc(churchDocRef);
+
+                if (!churchDoc.exists()) {
+                    throw new Error('Igreja não encontrada no banco de dados');
+                }
+
+                const churchData = churchDoc.data();
+                console.log('Dados da igreja encontrados:', churchData);
+
+                setChurchInfo({
+                    churchId: userData.churchId,
+                    churchName: churchData.name || churchData.churchName || 'Igreja não informada',
+                    pastorName: churchData.pastorName || churchData.pastor || 'Pastor não informado'
+                });
+
+            } catch (error: any) {
+                console.error('Erro ao buscar informações da igreja no Firestore:', error);
+                setChurchInfoError(error.message || 'Erro ao carregar informações da igreja');
+
+                // Fallback para dados básicos se disponível no userData
+                if (userData.churchName) {
                     setChurchInfo({
                         churchId: userData.churchId,
-                        churchName: churchData.name,
-                        pastorName: churchData.pastorName
+                        churchName: userData.churchName,
+                        pastorName: userData.pastorName || 'Pastor não informado'
                     });
+                    setChurchInfoError(null);
                 }
-            } catch (error) {
-                console.error('Erro ao buscar informações da igreja:', error);
             } finally {
                 setLoadingChurch(false);
             }
         };
 
-        fetchChurchInfo();
+        if (userData?.churchId) {
+            fetchChurchInfo();
+        } else {
+            setLoadingChurch(false);
+        }
     }, [userData?.churchId]);
+
+    const handleOpenAddModal = () => {
+        if (loadingChurch) {
+            alert('Aguarde, carregando informações da igreja...');
+            return;
+        }
+
+        // Permite abrir o modal mesmo se houver erro, desde que tenha churchId
+        if (!userData?.churchId) {
+            alert('ID da igreja não disponível. Não é possível cadastrar idoso.');
+            return;
+        }
+
+        setShowAddModal(true);
+    };
 
     const handleEventSelect = (event: Event) => {
         setSelectedEvent(event);
@@ -74,7 +120,11 @@ export default function SecretaryPaymentFlow({
     };
 
     const handleRegistration = async () => {
-        if (!selectedSenior || !selectedEvent || !userData) return;
+        if (!selectedSenior || !selectedSenior.id || !selectedEvent || !selectedEvent.id || !userData) {
+            alert('Por favor, selecione um evento e um idoso válidos.');
+            setLoading(false);
+            return;
+        }
 
         setLoading(true);
 
@@ -117,9 +167,9 @@ export default function SecretaryPaymentFlow({
                 userEmail: selectedSenior.email || '',
                 userPhone: selectedSenior.phone,
                 userCpf: selectedSenior.cpf,
-                userChurch: selectedSenior.churchId || '', // ID da igreja se tiver
-                churchName: selectedSenior.church,         // Nome da igreja
-                pastorName: selectedSenior.pastor,
+                userChurch: selectedSenior.churchId || churchInfo?.churchId || userData.churchId,
+                churchName: selectedSenior.church || churchInfo?.churchName || userData.churchName || '',
+                pastorName: selectedSenior.pastor || churchInfo?.pastorName || userData.pastorName || '',
 
                 // Status
                 status: 'pending',
@@ -170,6 +220,24 @@ export default function SecretaryPaymentFlow({
                 </p>
             </div>
 
+            {/* Mostrar status do carregamento da igreja */}
+            {loadingChurch && (
+                <div className="bg-yellow-100 p-3 rounded-lg">
+                    <p className="text-yellow-800">Carregando informações da igreja...</p>
+                </div>
+            )}
+
+            {churchInfoError && (
+                <div className="bg-red-100 p-3 rounded-lg">
+                    <p className="text-red-800">⚠️ {churchInfoError}</p>
+                    {userData?.churchName && (
+                        <p className="text-red-700 text-sm mt-1">
+                            Usando informações básicas: {userData.churchName}
+                        </p>
+                    )}
+                </div>
+            )}
+
             <EventSelector
                 events={availableEvents}
                 selectedEvent={selectedEvent}
@@ -189,10 +257,13 @@ export default function SecretaryPaymentFlow({
 
                         {!selectedSenior ? (
                             <button
-                                onClick={() => setShowAddModal(true)}
-                                className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold mt-3"
+                                onClick={handleOpenAddModal}
+                                disabled={loadingChurch || !userData?.churchId}
+                                className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold mt-3 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                ＋ Cadastrar Novo Idoso
+                                {loadingChurch ? 'Carregando...' :
+                                    !userData?.churchId ? 'Sem ID da igreja' :
+                                        '＋ Cadastrar Novo Idoso'}
                             </button>
                         ) : (
                             <div className="mt-4 space-y-3">
@@ -238,10 +309,11 @@ export default function SecretaryPaymentFlow({
                 isOpen={showAddModal}
                 onClose={() => setShowAddModal(false)}
                 onSeniorAdded={handleSeniorAdded}
+                churchInfo={churchInfo}
                 secretaryId={userData?.uid || ''}
-                churchId={churchInfo?.churchId || ''}
-                churchName={churchInfo?.churchName || ''}
-                pastorName={churchInfo?.pastorName || ''}
+                churchId={userData?.churchId || ''}
+                churchName={churchInfo?.churchName || userData?.churchName || ''}
+                pastorName={churchInfo?.pastorName || userData?.pastorName || ''}
                 loadingChurch={loadingChurch}
             />
 

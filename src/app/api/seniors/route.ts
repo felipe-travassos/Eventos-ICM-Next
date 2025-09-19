@@ -1,23 +1,8 @@
 // app/api/seniors/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
+import { Senior } from '@/types'
 
-interface Senior {
-    id: string;
-    name: string;
-    phone: string;
-    email?: string;
-    cpf: string;
-    church: string;
-    pastor: string;
-    birthDate?: string;
-    address?: string;
-    healthInfo?: string;
-    churchId: string;
-    createdBy: string;
-    createdAt: Date;
-    updatedAt: Date;
-}
 
 // Função para validar se os dados são do tipo Senior
 function isValidSenior(data: any): data is Senior {
