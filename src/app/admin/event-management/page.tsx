@@ -423,7 +423,7 @@ export default function EventManagementPage() {
                     <h1 className="text-3xl font-bold text-gray-800 mb-6">Gestão de Inscrições em Eventos</h1>
 
                     {!selectedEvent ? (
-                        // Lista de eventos
+                        // Lista de eventos (mantido igual)
                         <div className="grid gap-4">
                             <h2 className="text-xl font-semibold mb-4">Selecione um Evento</h2>
                             {events.length === 0 ? (
@@ -480,7 +480,7 @@ export default function EventManagementPage() {
                                 </div>
                             </div>
 
-                            {/* Filtros */}
+                            {/* Filtros (mantido igual) */}
                             <div className="bg-gray-50 p-4 rounded-lg mb-6">
                                 <h3 className="font-semibold mb-3">Filtros</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -535,7 +535,7 @@ export default function EventManagementPage() {
                                 </div>
                             </div>
 
-                            {/* Estatísticas */}
+                            {/* Estatísticas (mantido igual) */}
                             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
                                 <div className="bg-green-50 p-4 rounded-lg text-center">
                                     <div className="text-2xl font-bold text-green-800">{selectedEvent.paidCount}</div>
@@ -559,7 +559,7 @@ export default function EventManagementPage() {
                                 </div>
                             </div>
 
-                            {/* Botão Exportar */}
+                            {/* Botão Exportar (mantido igual) */}
                             <div className="mb-6">
                                 <button
                                     onClick={handleExportCSV}
@@ -569,7 +569,7 @@ export default function EventManagementPage() {
                                 </button>
                             </div>
 
-                            {/* Lista de inscritos */}
+                            {/* Lista de inscritos - VERSÃO RESPONSIVA */}
                             <div>
                                 <h3 className="font-semibold mb-4">
                                     Inscritos ({filteredRegistrations.length})
@@ -578,30 +578,147 @@ export default function EventManagementPage() {
                                 {filteredRegistrations.length === 0 ? (
                                     <p className="text-gray-500">Nenhum inscrito encontrado com os filtros aplicados.</p>
                                 ) : (
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full border-collapse border border-gray-300">
-                                            <thead>
-                                                <tr className="bg-gray-100">
-                                                    <th className="border border-gray-300 p-2 text-left">Nome</th>
-                                                    <th className="border border-gray-300 p-2 text-left">Email</th>
-                                                    <th className="border border-gray-300 p-2 text-left">Telefone</th>
-                                                    <th className="border border-gray-300 p-2 text-left">Igreja</th>
-                                                    <th className="border border-gray-300 p-2 text-left">Pastor</th>
-                                                    <th className="border border-gray-300 p-2 text-left">Status Inscrição</th>
-                                                    <th className="border border-gray-300 p-2 text-left">Status de Pagamento</th>
-                                                    <th className="border border-gray-300 p-2 text-left">Data Inscrição</th>
-                                                    <th className="border border-gray-300 p-2 text-left">Ações</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {filteredRegistrations.map(registration => (
-                                                    <tr key={registration.id} className="hover:bg-gray-50">
-                                                        <td className="border border-gray-300 p-2">{registration.userName}</td>
-                                                        <td className="border border-gray-300 p-2">{registration.userEmail}</td>
-                                                        <td className="border border-gray-300 p-2">{registration.userPhone}</td>
-                                                        <td className="border border-gray-300 p-2">{registration.churchName}</td>
-                                                        <td className="border border-gray-300 p-2">{registration.pastorName}</td>
-                                                        <td className="border border-gray-300 p-2">
+                                    <div>
+                                        {/* Vista Desktop - Tabela completa */}
+                                        <div className="hidden md:block overflow-x-auto">
+                                            <table className="w-full border-collapse border border-gray-300">
+                                                <thead>
+                                                    <tr className="bg-gray-100">
+                                                        <th className="border border-gray-300 p-2 text-left">Nome</th>
+                                                        <th className="border border-gray-300 p-2 text-left">Email</th>
+                                                        <th className="border border-gray-300 p-2 text-left">Telefone</th>
+                                                        <th className="border border-gray-300 p-2 text-left">Igreja</th>
+                                                        <th className="border border-gray-300 p-2 text-left">Pastor</th>
+                                                        <th className="border border-gray-300 p-2 text-left">Status Inscrição</th>
+                                                        <th className="border border-gray-300 p-2 text-left">Status de Pagamento</th>
+                                                        <th className="border border-gray-300 p-2 text-left">Data Inscrição</th>
+                                                        <th className="border border-gray-300 p-2 text-left">Ações</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {filteredRegistrations.map(registration => (
+                                                        <tr key={registration.id} className="hover:bg-gray-50">
+                                                            <td className="border border-gray-300 p-2">{registration.userName}</td>
+                                                            <td className="border border-gray-300 p-2">{registration.userEmail}</td>
+                                                            <td className="border border-gray-300 p-2">{registration.userPhone}</td>
+                                                            <td className="border border-gray-300 p-2">{registration.churchName}</td>
+                                                            <td className="border border-gray-300 p-2">{registration.pastorName}</td>
+                                                            <td className="border border-gray-300 p-2">
+                                                                <span className={`px-2 py-1 rounded text-xs ${registration.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                                                    registration.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                                                        'bg-red-100 text-red-800'
+                                                                    }`}>
+                                                                    {registration.status === 'approved' ? 'Aprovado' :
+                                                                        registration.status === 'pending' ? 'Pendente' : 'Rejeitado'}
+                                                                </span>
+                                                            </td>
+                                                            <td className="border border-gray-300 p-2">
+                                                                <span className={`px-2 py-1 rounded text-xs ${registration.paymentStatus === 'paid'
+                                                                    ? 'bg-green-100 text-green-800'
+                                                                    : registration.paymentStatus === 'pending'
+                                                                        ? 'bg-yellow-100 text-yellow-800'
+                                                                        : 'bg-red-100 text-red-800'
+                                                                    }`}>
+                                                                    {registration.paymentStatus === 'paid' ? 'Pago' :
+                                                                        registration.paymentStatus === 'pending' ? 'Pendente' : 'Reembolsado'}
+                                                                </span>
+                                                            </td>
+                                                            <td className="border border-gray-300 p-2">
+                                                                {registration.createdAt.toLocaleDateString('pt-BR')}
+                                                            </td>
+                                                            <td className="border border-gray-300 p-2">
+                                                                {registration.status === 'pending' && (
+                                                                    <div className="flex gap-2">
+                                                                        <button
+                                                                            onClick={() => handleApproveRegistration(registration.id)}
+                                                                            disabled={approvalLoading === registration.id}
+                                                                            className="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600 disabled:opacity-50"
+                                                                        >
+                                                                            {approvalLoading === registration.id ? '...' : '✅ Aprovar'}
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                const reason = prompt('Motivo da rejeição:');
+                                                                                if (reason) handleRejectRegistration(registration.id, reason);
+                                                                            }}
+                                                                            disabled={approvalLoading === registration.id}
+                                                                            className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 disabled:opacity-50"
+                                                                        >
+                                                                            {approvalLoading === registration.id ? '...' : '❌ Rejeitar'}
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                                {registration.status === 'approved' && (
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <span className="text-green-600 text-sm">✓ Aprovado</span>
+                                                                        {registration.paymentStatus === 'pending' && (
+                                                                            <button
+                                                                                onClick={() => handleGeneratePixPayment(registration)}
+                                                                                disabled={generatingPayment === registration.id}
+                                                                                className="bg-blue-500 text-white px-2 py-1 rounded text-xs hover:bg-blue-600 disabled:opacity-50 mt-1"
+                                                                            >
+                                                                                {generatingPayment === registration.id ? 'Gerando PIX...' : '💰 Gerar PIX'}
+                                                                            </button>
+                                                                        )}
+                                                                        {registration.paymentStatus === 'paid' && (
+                                                                            <span className="text-green-600 text-sm">✅ Pago</span>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                                {registration.status === 'rejected' && (
+                                                                    <div>
+                                                                        <span className="text-red-600 text-sm">✗ Rejeitado</span>
+                                                                        {registration.rejectionReason && (
+                                                                            <div className="text-xs text-gray-500 mt-1">
+                                                                                Motivo: {registration.rejectionReason}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        {/* Vista Mobile - Cards */}
+                                        <div className="md:hidden space-y-4">
+                                            {filteredRegistrations.map(registration => (
+                                                <div key={registration.id} className="bg-white border border-gray-300 rounded-lg p-4 shadow-sm">
+                                                    <div className="grid grid-cols-2 gap-3 mb-3">
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-500">Nome</p>
+                                                            <p className="font-semibold">{registration.userName}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-500">Telefone</p>
+                                                            <p className="font-semibold">{registration.userPhone}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-500">Email</p>
+                                                            <p className="font-semibold text-sm">{registration.userEmail || 'Não informado'}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-500">Data</p>
+                                                            <p className="font-semibold">{registration.createdAt.toLocaleDateString('pt-BR')}</p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-2 gap-3 mb-3">
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-500">Igreja</p>
+                                                            <p className="font-semibold text-sm">{registration.churchName}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-500">Pastor</p>
+                                                            <p className="font-semibold text-sm">{registration.pastorName}</p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-2 gap-3 mb-4">
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-500">Status Inscrição</p>
                                                             <span className={`px-2 py-1 rounded text-xs ${registration.status === 'approved' ? 'bg-green-100 text-green-800' :
                                                                 registration.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                                                                     'bg-red-100 text-red-800'
@@ -609,8 +726,9 @@ export default function EventManagementPage() {
                                                                 {registration.status === 'approved' ? 'Aprovado' :
                                                                     registration.status === 'pending' ? 'Pendente' : 'Rejeitado'}
                                                             </span>
-                                                        </td>
-                                                        <td className="border border-gray-300 p-2">
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-medium text-gray-500">Status Pagamento</p>
                                                             <span className={`px-2 py-1 rounded text-xs ${registration.paymentStatus === 'paid'
                                                                 ? 'bg-green-100 text-green-800'
                                                                 : registration.paymentStatus === 'pending'
@@ -620,65 +738,63 @@ export default function EventManagementPage() {
                                                                 {registration.paymentStatus === 'paid' ? 'Pago' :
                                                                     registration.paymentStatus === 'pending' ? 'Pendente' : 'Reembolsado'}
                                                             </span>
-                                                        </td>
-                                                        <td className="border border-gray-300 p-2">
-                                                            {registration.createdAt.toLocaleDateString('pt-BR')}
-                                                        </td>
+                                                        </div>
+                                                    </div>
 
-                                                        <td className="border border-gray-300 p-2">
-                                                            {registration.status === 'pending' && (
-                                                                <div className="flex gap-2">
+                                                    {/* Ações */}
+                                                    <div className="border-t pt-3">
+                                                        {registration.status === 'pending' && (
+                                                            <div className="flex gap-2">
+                                                                <button
+                                                                    onClick={() => handleApproveRegistration(registration.id)}
+                                                                    disabled={approvalLoading === registration.id}
+                                                                    className="flex-1 bg-green-500 text-white px-3 py-2 rounded text-sm hover:bg-green-600 disabled:opacity-50"
+                                                                >
+                                                                    {approvalLoading === registration.id ? '...' : '✅ Aprovar'}
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const reason = prompt('Motivo da rejeição:');
+                                                                        if (reason) handleRejectRegistration(registration.id, reason);
+                                                                    }}
+                                                                    disabled={approvalLoading === registration.id}
+                                                                    className="flex-1 bg-red-500 text-white px-3 py-2 rounded text-sm hover:bg-red-600 disabled:opacity-50"
+                                                                >
+                                                                    {approvalLoading === registration.id ? '...' : '❌ Rejeitar'}
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                        {registration.status === 'approved' && (
+                                                            <div className="space-y-2">
+                                                                <div className="text-center text-green-600 text-sm">✓ Aprovado</div>
+                                                                {registration.paymentStatus === 'pending' && (
                                                                     <button
-                                                                        onClick={() => handleApproveRegistration(registration.id)}
-                                                                        disabled={approvalLoading === registration.id}
-                                                                        className="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600 disabled:opacity-50"
+                                                                        onClick={() => handleGeneratePixPayment(registration)}
+                                                                        disabled={generatingPayment === registration.id}
+                                                                        className="w-full bg-blue-500 text-white px-3 py-2 rounded text-sm hover:bg-blue-600 disabled:opacity-50"
                                                                     >
-                                                                        {approvalLoading === registration.id ? '...' : '✅ Aprovar'}
+                                                                        {generatingPayment === registration.id ? 'Gerando PIX...' : '💰 Gerar PIX'}
                                                                     </button>
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            const reason = prompt('Motivo da rejeição:');
-                                                                            if (reason) handleRejectRegistration(registration.id, reason);
-                                                                        }}
-                                                                        disabled={approvalLoading === registration.id}
-                                                                        className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 disabled:opacity-50"
-                                                                    >
-                                                                        {approvalLoading === registration.id ? '...' : '❌ Rejeitar'}
-                                                                    </button>
-                                                                </div>
-                                                            )}
-                                                            {registration.status === 'approved' && (
-                                                                <div className="flex flex-col gap-1">
-                                                                    <span className="text-green-600 text-sm">✓ Aprovado</span>
-                                                                    {registration.paymentStatus === 'pending' && (
-                                                                        <button
-                                                                            onClick={() => handleGeneratePixPayment(registration)}
-                                                                            disabled={generatingPayment === registration.id}
-                                                                            className="bg-blue-500 text-white px-2 py-1 rounded text-xs hover:bg-blue-600 disabled:opacity-50 mt-1"
-                                                                        >
-                                                                            {generatingPayment === registration.id ? 'Gerando PIX...' : '💰 Gerar PIX'}
-                                                                        </button>
-                                                                    )}
-                                                                    {registration.paymentStatus === 'paid' && (
-                                                                        <span className="text-green-600 text-sm">✅ Pago</span>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                            {registration.status === 'rejected' && (
-                                                                <div>
-                                                                    <span className="text-red-600 text-sm">✗ Rejeitado</span>
-                                                                    {registration.rejectionReason && (
-                                                                        <div className="text-xs text-gray-500 mt-1">
-                                                                            Motivo: {registration.rejectionReason}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                                                )}
+                                                                {registration.paymentStatus === 'paid' && (
+                                                                    <div className="text-center text-green-600 text-sm">✅ Pago</div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        {registration.status === 'rejected' && (
+                                                            <div>
+                                                                <div className="text-center text-red-600 text-sm">✗ Rejeitado</div>
+                                                                {registration.rejectionReason && (
+                                                                    <div className="text-xs text-gray-500 mt-1 text-center">
+                                                                        Motivo: {registration.rejectionReason}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
                             </div>
