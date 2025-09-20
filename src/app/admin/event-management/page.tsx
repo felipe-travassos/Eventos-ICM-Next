@@ -7,6 +7,7 @@ import { collection, doc, getDoc, getDocs, query, updateDoc, where } from 'fireb
 import { db } from '@/lib/firebase/config';
 import { Event, EventRegistration, UserRole } from '@/types';
 import Image from 'next/image';
+import { getChurchNameById } from '@/lib/firebase/churches';
 
 interface EventWithRegistrations extends Event {
     registrations: EventRegistration[];
@@ -19,6 +20,7 @@ const allowedRoles: UserRole[] = ['pastor', 'secretario_regional', 'secretario_l
 
 export default function EventManagementPage() {
 
+    const [userChurchName, setUserChurchName] = useState('');
     const [events, setEvents] = useState<EventWithRegistrations[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedEvent, setSelectedEvent] = useState<EventWithRegistrations | null>(null);
@@ -82,10 +84,22 @@ export default function EventManagementPage() {
                 };
 
                 // Buscar inscrições para este evento
-                const registrationsQuery = query(
-                    collection(db, 'registrations'),
-                    where('eventId', '==', eventDoc.id)
-                );
+                let registrationsQuery;
+
+                // ✅ FILTRO POR IGREJA: secretario_local só vê da própria igreja
+                if (userData.role === 'secretario_local' && userData.churchId) {
+                    registrationsQuery = query(
+                        collection(db, 'registrations'),
+                        where('eventId', '==', eventDoc.id),
+                        where('userChurch', '==', userData.churchId)
+                    );
+                } else {
+                    // ✅ secretario_regional e pastor veem todas as igrejas
+                    registrationsQuery = query(
+                        collection(db, 'registrations'),
+                        where('eventId', '==', eventDoc.id)
+                    );
+                }
 
                 const registrationsSnapshot = await getDocs(registrationsQuery);
                 const registrations: EventRegistration[] = [];
@@ -104,7 +118,7 @@ export default function EventManagementPage() {
                         pastorName: regData.pastorName,
                         status: regData.status,
                         paymentStatus: regData.paymentStatus,
-                        paymentId: regData.paymentId || '', // ✅ Buscar o paymentId
+                        paymentId: regData.paymentId || '',
                         paymentDate: regData.paymentDate?.toDate(),
                         createdAt: regData.createdAt.toDate(),
                         updatedAt: regData.updatedAt.toDate()
@@ -124,12 +138,29 @@ export default function EventManagementPage() {
         } finally {
             setLoading(false);
         }
-    }, [userData?.role, userData?.uid]);
+    }, [userData?.role, userData?.uid, userData?.churchId]);
 
     // ✅ useEffect com dependências corretas
     useEffect(() => {
         loadEventsWithRegistrations();
     }, [loadEventsWithRegistrations]);
+
+    // ✅ useEffect para buscar o nome da igreja
+    useEffect(() => {
+        const fetchChurchName = async () => {
+            if (userData?.churchId) {
+                try {
+                    const name = await getChurchNameById(userData.churchId);
+                    setUserChurchName(name);
+                } catch (error) {
+                    console.error('Erro ao buscar nome da igreja:', error);
+                    setUserChurchName(userData.churchId);
+                }
+            }
+        };
+
+        fetchChurchName();
+    }, [userData?.churchId]);
 
 
     // Função para atualização otimista do status
@@ -410,6 +441,8 @@ export default function EventManagementPage() {
         if (selectedEvent) {
             let filtered = selectedEvent.registrations;
 
+            // ✅ Para secretários locais, já estamos filtrando por igreja na query
+            // então não precisamos filtrar novamente por igreja aqui
             if (filters.paymentStatus !== 'all') {
                 filtered = filtered.filter(reg => reg.paymentStatus === filters.paymentStatus);
             }
@@ -418,7 +451,7 @@ export default function EventManagementPage() {
                 filtered = filtered.filter(reg => reg.status === filters.registrationStatus);
             }
 
-            if (filters.churchName) {
+            if (filters.churchName && userData?.role !== 'secretario_local') {
                 filtered = filtered.filter(reg =>
                     reg.churchName.toLowerCase().includes(filters.churchName.toLowerCase())
                 );
@@ -432,7 +465,7 @@ export default function EventManagementPage() {
 
             setFilteredRegistrations(filtered);
         }
-    }, [selectedEvent, filters]);
+    }, [selectedEvent, filters, userData?.role]);
 
     // Adicione esta função para calcular estatísticas
     const getStatusStats = () => {
@@ -513,6 +546,31 @@ export default function EventManagementPage() {
             <div className="container mx-auto px-4">
                 <div className="bg-white rounded-lg shadow-md p-6">
                     <h1 className="text-3xl font-bold text-gray-800 mb-6">Gestão de Inscrições em Eventos</h1>
+
+                    {/* ✅ Cabeçalho com nome da igreja */}
+                    {userData?.role === 'secretario_local' && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                            <p className="text-blue-800 text-sm">
+                                <strong>Modo Secretário Local:</strong> Visualizando apenas inscrições da sua igreja ({userChurchName || userData.churchId})
+                            </p>
+                        </div>
+                    )}
+
+                    {userData?.role === 'secretario_regional' && (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                            <p className="text-green-800 text-sm">
+                                <strong>Modo Secretário Regional:</strong> Visualizando inscrições de todas as igrejas
+                            </p>
+                        </div>
+                    )}
+
+                    {userData?.role === 'pastor' && (
+                        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
+                            <p className="text-purple-800 text-sm">
+                                <strong>Modo Pastor:</strong> Visualizando inscrições de todas as igrejas
+                            </p>
+                        </div>
+                    )}
 
                     {!selectedEvent ? (
                         // Lista de eventos (mantido igual)
@@ -605,13 +663,22 @@ export default function EventManagementPage() {
 
                                     <div>
                                         <label className="block text-sm font-medium mb-1">Igreja</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Filtrar por igreja..."
-                                            value={filters.churchName}
-                                            onChange={(e) => setFilters({ ...filters, churchName: e.target.value })}
-                                            className="w-full p-2 border rounded"
-                                        />
+                                        {userData?.role === 'secretario_local' ? (
+                                            <input
+                                                type="text"
+                                                value={userData.churchName || 'Minha Igreja'}
+                                                disabled
+                                                className="w-full p-2 border rounded bg-gray-100 cursor-not-allowed"
+                                            />
+                                        ) : (
+                                            <input
+                                                type="text"
+                                                placeholder="Filtrar por igreja..."
+                                                value={filters.churchName}
+                                                onChange={(e) => setFilters({ ...filters, churchName: e.target.value })}
+                                                className="w-full p-2 border rounded"
+                                            />
+                                        )}
                                     </div>
 
                                     <div>
@@ -679,7 +746,9 @@ export default function EventManagementPage() {
                                                         <th className="border border-gray-300 p-2 text-left">Nome</th>
                                                         <th className="border border-gray-300 p-2 text-left">Email</th>
                                                         <th className="border border-gray-300 p-2 text-left">Telefone</th>
-                                                        <th className="border border-gray-300 p-2 text-left">Igreja</th>
+                                                        {(userData?.role === 'secretario_regional' || userData?.role === 'pastor') && (
+                                                            <th className="border border-gray-300 p-2 text-left">Igreja</th>
+                                                        )}
                                                         <th className="border border-gray-300 p-2 text-left">Pastor</th>
                                                         <th className="border border-gray-300 p-2 text-left">Status Inscrição</th>
                                                         <th className="border border-gray-300 p-2 text-left">Status de Pagamento</th>
@@ -693,7 +762,9 @@ export default function EventManagementPage() {
                                                             <td className="border border-gray-300 p-2">{registration.userName}</td>
                                                             <td className="border border-gray-300 p-2">{registration.userEmail}</td>
                                                             <td className="border border-gray-300 p-2">{registration.userPhone}</td>
-                                                            <td className="border border-gray-300 p-2">{registration.churchName}</td>
+                                                            {(userData?.role === 'secretario_regional' || userData?.role === 'pastor') && (
+                                                                <td className="border border-gray-300 p-2">{registration.churchName}</td>
+                                                            )}
                                                             <td className="border border-gray-300 p-2">{registration.pastorName}</td>
                                                             <td className="border border-gray-300 p-2">
                                                                 <span className={`px-2 py-1 rounded text-xs ${registration.status === 'approved' ? 'bg-green-100 text-green-800' :
@@ -803,10 +874,12 @@ export default function EventManagementPage() {
                                                     </div>
 
                                                     <div className="grid grid-cols-2 gap-3 mb-3">
-                                                        <div>
-                                                            <p className="text-sm font-medium text-gray-500">Igreja</p>
-                                                            <p className="font-semibold text-sm">{registration.churchName}</p>
-                                                        </div>
+                                                        {(userData?.role === 'secretario_regional' || userData?.role === 'pastor') && (
+                                                            <div>
+                                                                <p className="text-sm font-medium text-gray-500">Igreja</p>
+                                                                <p className="font-semibold text-sm">{registration.churchName}</p>
+                                                            </div>
+                                                        )}
                                                         <div>
                                                             <p className="text-sm font-medium text-gray-500">Pastor</p>
                                                             <p className="font-semibold text-sm">{registration.pastorName}</p>

@@ -43,3 +43,36 @@ export const unlinkPastorFromChurch = async (churchId: string) => {
     throw error;
   }
 };
+
+
+// ✅ Nova função para buscar nome da igreja pelo ID
+export const getChurchNameById = async (churchId: string): Promise<string> => {
+  if (!churchId) return '';
+  
+  try {
+    const churchDoc = await getDoc(doc(db, 'churches', churchId));
+    if (churchDoc.exists()) {
+      return churchDoc.data().name || '';
+    }
+    return '';
+  } catch (error) {
+    console.error('Erro ao buscar nome da igreja:', error);
+    return '';
+  }
+};
+
+// ✅ Função para buscar dados completos da igreja
+export const getChurchData = async (churchId: string) => {
+  if (!churchId) return null;
+  
+  try {
+    const churchDoc = await getDoc(doc(db, 'churches', churchId));
+    if (churchDoc.exists()) {
+      return { id: churchDoc.id, ...churchDoc.data() };
+    }
+    return null;
+  } catch (error) {
+    console.error('Erro ao buscar dados da igreja:', error);
+    return null;
+  }
+};

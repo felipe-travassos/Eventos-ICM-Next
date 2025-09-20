@@ -144,9 +144,9 @@ export default function ProfilePage() {
             await updateProfileData(currentUser.uid, dataToSave);
 
             // Se uma igreja foi selecionada, vincula o pastor a ela
-            if (formData.churchId) {
-                await linkPastorToChurch(currentUser.uid, formData.churchId);
-            }
+            // if (formData.churchId) {
+            //     await linkPastorToChurch(currentUser.uid, formData.churchId);
+            // }
 
             // Atualiza a exibição do CPF com a máscara de segurança
             setDisplayCpf(dataToSave.cpf ? displayMaskedCPF(dataToSave.cpf) : '');
