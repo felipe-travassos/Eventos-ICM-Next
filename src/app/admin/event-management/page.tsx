@@ -5,15 +5,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-import { Event, EventRegistration, UserRole } from '@/types';
+import { EventRegistration, UserRole, EventWithRegistrations } from '@/types';
 import Image from 'next/image';
 import { getChurchNameById } from '@/lib/firebase/churches';
-
-interface EventWithRegistrations extends Event {
-    registrations: EventRegistration[];
-    paidCount: number;
-    pendingCount: number;
-}
+import EventReports from '@/components/Reports/EventReports';
+import Charts from '@/components/Reports/Charts';
 
 // ✅ Usar UserRole importado para definir as roles permitidas
 const allowedRoles: UserRole[] = ['pastor', 'secretario_regional', 'secretario_local'];
@@ -694,6 +690,8 @@ export default function EventManagementPage() {
                                 </div>
                             </div>
 
+                            <EventReports events={events} selectedEvent={selectedEvent} />
+
                             {/* Estatísticas (mantido igual) */}
                             <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
                                 <div className="bg-green-50 p-4 rounded-lg text-center">
@@ -717,6 +715,10 @@ export default function EventManagementPage() {
                                     <div className="text-red-600">Rejeitadas</div>
                                 </div>
                             </div>
+
+                            {selectedEvent && (
+                                <Charts event={selectedEvent} />
+                            )}
 
                             {/* Botão Exportar (mantido igual) */}
                             <div className="mb-6">

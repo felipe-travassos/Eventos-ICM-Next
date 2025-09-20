@@ -30,6 +30,12 @@ export interface EventRegistration {
 
 }
 
+export interface EventWithRegistrations extends Event {
+    registrations: EventRegistration[];
+    paidCount: number;
+    pendingCount: number;
+}
+
 
 // Tipo para CRIAÇÃO (quando os dados vão para o Firestore)
 export interface EventRegistrationCreate {
