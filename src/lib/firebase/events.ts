@@ -9,6 +9,7 @@ import {
     updateDoc,
     addDoc,
     deleteDoc,
+    orderBy,
 } from 'firebase/firestore';
 
 import { db } from '@/lib/firebase/config';
@@ -346,9 +347,11 @@ export const registerForEvent = async (
  */
 export const getUserRegistrations = async (userId: string): Promise<EventRegistration[]> => {
     try {
+        const registrationsRef = collection(db, 'registrations');
         const q = query(
-            collection(db, 'registrations'),
-            where('userId', '==', userId)
+            registrationsRef,
+            where('userId', '==', userId),
+            orderBy('createdAt', 'desc')
         );
 
         const querySnapshot = await getDocs(q);
@@ -364,20 +367,25 @@ export const getUserRegistrations = async (userId: string): Promise<EventRegistr
                 userEmail: data.userEmail,
                 userPhone: data.userPhone,
                 userChurch: data.userChurch,
-                churchName: data.churchName || 'Não informada', // Campo novo
-                pastorName: data.pastorName || 'Não informado', // Campo novo
+                churchName: data.churchName,
+                pastorName: data.pastorName,
                 status: data.status,
                 paymentStatus: data.paymentStatus,
+                paymentId: data.paymentId || '',
                 paymentDate: data.paymentDate?.toDate(),
                 createdAt: data.createdAt.toDate(),
-                updatedAt: data.updatedAt.toDate()
+                updatedAt: data.updatedAt.toDate(),
+                userCpf: data.userCpf || '',
+                registeredBy: data.registeredBy || '',
+                registeredByName: data.registeredByName || '',
+                registrationType: data.registrationType || 'self'
             } as EventRegistration);
         });
 
         return registrations;
     } catch (error) {
         console.error('Erro ao buscar inscrições do usuário:', error);
-        return [];
+        throw error;
     }
 };
 

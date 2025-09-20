@@ -2,16 +2,9 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-
-interface Senior {
-  id: string;
-  name: string;
-  phone: string;
-  email?: string;
-  cpf: string;
-  church: string;
-  pastor: string;
-}
+import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
+import { Senior } from '@/types';
 
 interface SeniorAutocompleteProps {
   onSeniorSelect: (senior: Senior) => void;
@@ -24,6 +17,7 @@ export default function SeniorAutocomplete({
   selectedSenior,
   secretaryId
 }: SeniorAutocompleteProps) {
+  // ✅ Inicializar com string vazia em vez de undefined
   const [searchTerm, setSearchTerm] = useState(selectedSenior?.name || '');
   const [seniors, setSeniors] = useState<Senior[]>([]);
   const [loading, setLoading] = useState(false);
@@ -34,6 +28,8 @@ export default function SeniorAutocomplete({
   useEffect(() => {
     if (selectedSenior) {
       setSearchTerm(selectedSenior.name);
+    } else {
+      setSearchTerm(''); // ✅ Garantir que nunca fique undefined
     }
   }, [selectedSenior]);
 
@@ -49,7 +45,8 @@ export default function SeniorAutocomplete({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Função de busca com useCallback para evitar recriações desnecessárias
+  // Função de busca direta no Firestore
+  // Função de busca direta no Firestore
   const searchSeniors = useCallback(async (term: string) => {
     if (term.length < 3) {
       setSeniors([]);
@@ -59,25 +56,123 @@ export default function SeniorAutocomplete({
 
     setLoading(true);
     try {
-      const response = await fetch(
-        `/api/seniors?secretaryId=${secretaryId}&search=${encodeURIComponent(term)}`
+      const seniorsRef = collection(db, 'seniors');
+
+      // ✅ Normalizar o termo de busca: primeira letra maiúscula + resto minúsculas
+      const normalizedTerm = term.charAt(0).toUpperCase() + term.slice(1).toLowerCase();
+
+      // ✅ Buscar por nome normalizado (case insensitive)
+      const q = query(
+        seniorsRef,
+        where('name', '>=', normalizedTerm),
+        where('name', '<=', normalizedTerm + '\uf8ff'),
+        orderBy('name'),
+        limit(10)
       );
 
-      if (!response.ok) {
-        throw new Error(`Erro na busca: ${response.status}`);
+      const querySnapshot = await getDocs(q);
+      const seniorsData: Senior[] = [];
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        // Mapeando os dados para a interface Senior
+        seniorsData.push({
+          id: doc.id,
+          name: data.name || '',
+          phone: data.phone || '',
+          email: data.email || '',
+          cpf: data.cpf || '',
+          church: data.church || '',
+          pastor: data.pastor || '',
+          birthDate: data.birthDate || '',
+          address: data.address || '',
+          healthInfo: data.healthInfo || '',
+          churchId: data.churchId || '',
+          createdBy: data.createdBy || '',
+          createdAt: data.createdAt?.toDate() || new Date(),
+          updatedAt: data.updatedAt?.toDate() || new Date()
+        });
+      });
+
+      // ✅ Busca alternativa: também buscar em minúsculas
+      if (seniorsData.length === 0) {
+        const alternativeQuery = query(
+          seniorsRef,
+          where('name', '>=', term.toLowerCase()),
+          where('name', '<=', term.toLowerCase() + '\uf8ff'),
+          orderBy('name'),
+          limit(10)
+        );
+
+        const alternativeSnapshot = await getDocs(alternativeQuery);
+        alternativeSnapshot.forEach((doc) => {
+          const data = doc.data();
+          seniorsData.push({
+            id: doc.id,
+            name: data.name || '',
+            phone: data.phone || '',
+            email: data.email || '',
+            cpf: data.cpf || '',
+            church: data.church || '',
+            pastor: data.pastor || '',
+            birthDate: data.birthDate || '',
+            address: data.address || '',
+            healthInfo: data.healthInfo || '',
+            churchId: data.churchId || '',
+            createdBy: data.createdBy || '',
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate() || new Date()
+          });
+        });
       }
 
-      const data = await response.json();
-      setSeniors(data);
-      setShowDropdown(true);
+      // ✅ Busca adicional: também buscar em maiúsculas
+      if (seniorsData.length === 0) {
+        const uppercaseQuery = query(
+          seniorsRef,
+          where('name', '>=', term.toUpperCase()),
+          where('name', '<=', term.toUpperCase() + '\uf8ff'),
+          orderBy('name'),
+          limit(10)
+        );
+
+        const uppercaseSnapshot = await getDocs(uppercaseQuery);
+        uppercaseSnapshot.forEach((doc) => {
+          const data = doc.data();
+          seniorsData.push({
+            id: doc.id,
+            name: data.name || '',
+            phone: data.phone || '',
+            email: data.email || '',
+            cpf: data.cpf || '',
+            church: data.church || '',
+            pastor: data.pastor || '',
+            birthDate: data.birthDate || '',
+            address: data.address || '',
+            healthInfo: data.healthInfo || '',
+            churchId: data.churchId || '',
+            createdBy: data.createdBy || '',
+            createdAt: data.createdAt?.toDate() || new Date(),
+            updatedAt: data.updatedAt?.toDate() || new Date()
+          });
+        });
+      }
+
+      // ✅ Remover duplicatas (caso haja sobreposição nas buscas)
+      const uniqueSeniors = seniorsData.filter((senior, index, self) =>
+        index === self.findIndex(s => s.id === senior.id)
+      );
+
+      setSeniors(uniqueSeniors);
+      setShowDropdown(uniqueSeniors.length > 0);
     } catch (error) {
-      console.error('Erro ao buscar idosos:', error);
+      console.error('Erro ao buscar idosos no Firestore:', error);
       setSeniors([]);
       setShowDropdown(false);
     } finally {
       setLoading(false);
     }
-  }, [secretaryId]);
+  }, []);
 
   useEffect(() => {
     // Debounce para evitar muitas requisições
@@ -128,7 +223,7 @@ export default function SeniorAutocomplete({
 
       <input
         type="text"
-        value={searchTerm}
+        value={searchTerm} // ✅ Agora sempre será string, nunca undefined
         onChange={handleInputChange}
         onFocus={handleInputFocus}
         placeholder="Digite pelo menos 3 letras do nome..."
@@ -149,6 +244,7 @@ export default function SeniorAutocomplete({
                 <div className="font-medium">{senior.name}</div>
                 <div className="text-sm text-gray-600">
                   {senior.phone} • {senior.church}
+                  {senior.email && ` • ${senior.email}`}
                 </div>
               </div>
             ))

@@ -14,7 +14,7 @@ export interface EventRegistration {
     churchName: string;
     userCpf: string;
     pastorName: string;
-    status: 'pending' | 'approved' | 'rejected' | 'paid' | 'cancelled';
+    status: 'pending' | 'approved' | 'rejected' | 'confirmed' | 'cancelled';
     paymentStatus: 'pending' | 'paid' | 'refunded';
     paymentDate?: Date;
     registeredBy: string; // ID do secretário

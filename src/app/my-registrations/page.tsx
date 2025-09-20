@@ -35,6 +35,7 @@ interface PaymentData {
 interface RegistrationWithDetails extends EventRegistration {
     event?: Event;
     churchDetails?: Church;
+    paymentId: string;
 }
 
 export default function MyRegistrationsPage() {
@@ -71,10 +72,36 @@ export default function MyRegistrationsPage() {
 
             try {
                 const userRegistrations = await getUserRegistrations(currentUser.uid);
+
+                // ✅ DEBUG: Verificar se os paymentIds estão vindo
+                console.log('Inscrições brutas:', userRegistrations.map(r => ({
+                    id: r.id,
+                    paymentId: r.paymentId,
+                    hasPaymentId: !!r.paymentId,
+                    status: r.status,
+                    paymentStatus: r.paymentStatus
+                })));
+
                 const registrationsWithDetails = await Promise.all(
                     userRegistrations.map(async (registration) => {
+                        // ✅ Buscar paymentId diretamente se não estiver vindo na query
+                        let paymentId = registration.paymentId;
+                        if (!paymentId) {
+                            try {
+                                const registrationDoc = await getDoc(doc(db, 'registrations', registration.id));
+                                if (registrationDoc.exists()) {
+                                    const data = registrationDoc.data();
+                                    paymentId = data.paymentId || '';
+                                    console.log('PaymentId buscado do Firestore:', registration.id, paymentId);
+                                }
+                            } catch (error) {
+                                console.error('Erro ao buscar paymentId do Firestore:', error);
+                            }
+                        }
+
                         const registrationWithDetails: RegistrationWithDetails = {
-                            ...registration
+                            ...registration,
+                            paymentId: paymentId || '' // ✅ Garantir que paymentId seja incluído
                         };
 
                         if (registration.eventId) {
@@ -98,6 +125,15 @@ export default function MyRegistrationsPage() {
                         return registrationWithDetails;
                     })
                 );
+
+                // ✅ DEBUG: Verificar resultado final
+                console.log('Inscrições com detalhes:', registrationsWithDetails.map(r => ({
+                    id: r.id,
+                    paymentId: r.paymentId,
+                    status: r.status,
+                    paymentStatus: r.paymentStatus,
+                    hasPaymentId: !!r.paymentId
+                })));
 
                 setRegistrations(registrationsWithDetails);
             } catch (error) {
@@ -177,7 +213,48 @@ export default function MyRegistrationsPage() {
 
 
     const handlePayment = async (registration: RegistrationWithDetails) => {
-        console.log('Iniciando pagamento para:', registration.id)
+        console.log('Iniciando processo de pagamento para:', registration.id);
+
+        // ✅ Verificar se já existe um paymentId
+        if (registration.paymentId) {
+            console.log('Pagamento já existe, buscando dados...');
+            try {
+                // Buscar dados do pagamento existente
+                const response = await fetch(`/api/pix/status?paymentId=${registration.paymentId}&registrationId=${registration.id}`);
+
+                if (response.ok) {
+                    const statusData = await response.json();
+
+                    // Buscar dados completos do PIX
+                    const pixResponse = await fetch(`/api/pix/get-payment?paymentId=${registration.paymentId}`);
+
+                    if (pixResponse.ok) {
+                        const pixData = await pixResponse.json();
+                        setPaymentData({
+                            registrationId: registration.id,
+                            eventId: registration.eventId,
+                            amount: registration.event?.price || 0,
+                            description: `Inscrição: ${registration.event?.title}`,
+                            qrCode: pixData.qr_code,
+                            qrCodeBase64: pixData.qr_code_base64,
+                            ticketUrl: pixData.ticket_url,
+                            paymentId: pixData.id,
+                            externalReference: pixData.external_reference
+                        });
+                        setShowPaymentModal(true);
+                        return;
+                    }
+                }
+
+                // Se não conseguir buscar, continuar para criar novo
+                console.log('Não foi possível buscar pagamento existente, criando novo...');
+            } catch (error) {
+                console.error('Erro ao buscar pagamento existente:', error);
+                // Continuar para criar novo pagamento
+            }
+        }
+
+        // Se não existe paymentId ou não conseguiu buscar, criar novo
         if (!registration.event) return;
 
         setProcessingPayment(registration.id);
@@ -190,8 +267,6 @@ export default function MyRegistrationsPage() {
             const paymentRequest = {
                 transaction_amount: amount,
                 description: `Inscrição: ${registration.event.title}`,
-
-                // Dados do pagador
                 payer: {
                     email: registration.userEmail,
                     first_name: firstName,
@@ -205,8 +280,6 @@ export default function MyRegistrationsPage() {
                         number: formatPhoneNumber(registration.userPhone)
                     }
                 },
-
-                // Informações adicionais
                 additional_info: {
                     items: [
                         {
@@ -227,10 +300,8 @@ export default function MyRegistrationsPage() {
                         }
                     }
                 },
-
-                // Metadados com external_reference
                 metadata: {
-                    registrationId: registration.id, // ← external_reference será este ID
+                    registrationId: registration.id,
                     eventId: registration.eventId,
                     userId: currentUser!.uid,
                     eventName: registration.event.title,
@@ -241,17 +312,7 @@ export default function MyRegistrationsPage() {
                 },
             };
 
-            // DEBUG: Mostra os dados que serão enviados
-            console.log('📤 Dados sendo enviados para Mercado Pago:', JSON.stringify(paymentRequest, null, 2));
-
             const paymentResult = await createPixPayment(paymentRequest);
-
-            console.log('✅ Resultado do pagamento:', {
-                id: paymentResult.id,
-                external_reference: paymentResult.external_reference,
-                qr_code: paymentResult.qr_code ? '✅ Gerado' : '❌ Falhou',
-                error: paymentResult.error
-            });
 
             if (paymentResult.id && paymentResult.qr_code) {
                 setPaymentData({
@@ -263,7 +324,7 @@ export default function MyRegistrationsPage() {
                     qrCodeBase64: paymentResult.qr_code_base64,
                     ticketUrl: paymentResult.ticket_url,
                     paymentId: paymentResult.id,
-                    externalReference: paymentResult.external_reference // ← Guarda o external_reference
+                    externalReference: paymentResult.external_reference
                 });
                 setShowPaymentModal(true);
 
@@ -274,32 +335,15 @@ export default function MyRegistrationsPage() {
                         : reg
                 ));
             } else {
-                console.error('❌ Erro no resultado do pagamento:', paymentResult);
-
                 let errorMessage = 'Erro ao processar pagamento. Tente novamente.';
                 if (paymentResult.error) {
                     errorMessage += ` Detalhes: ${paymentResult.error}`;
-                    if (paymentResult.details) {
-                        errorMessage += ` - ${paymentResult.details}`;
-                    }
                 }
-
                 alert(errorMessage);
             }
         } catch (error: any) {
-            console.error('❌ Erro no processo de pagamento:', {
-                message: error.message,
-                stack: error.stack
-            });
-
-            let errorMessage = 'Erro ao processar pagamento';
-            if (error.message.includes('Network')) {
-                errorMessage = 'Erro de conexão. Verifique sua internet e tente novamente.';
-            } else if (error.message.includes('timeout')) {
-                errorMessage = 'Tempo limite excedido. Tente novamente.';
-            }
-
-            alert(errorMessage);
+            console.error('❌ Erro no processo de pagamento:', error);
+            alert('Erro ao processar pagamento. Tente novamente.');
         } finally {
             setProcessingPayment(null);
         }
@@ -596,33 +640,55 @@ export default function MyRegistrationsPage() {
                                     {/* Área de ações */}
                                     <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t gap-3">
                                         <div className="flex flex-wrap gap-2">
-                                            {registration.paymentStatus === 'pending' && (
-                                                <>
-                                                    <button
-                                                        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition text-sm disabled:opacity-50"
-                                                        onClick={() => handlePayment(registration)}
-                                                        disabled={processingPayment === registration.id}
-                                                    >
-                                                        {processingPayment === registration.id ? 'Processando...' : 'Realizar Pagamento'}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteRegistration(registration)}
-                                                        disabled={deletingId === registration.id}
-                                                        className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition text-sm disabled:opacity-50"
-                                                    >
-                                                        {deletingId === registration.id
-                                                            ? 'Excluindo...'
-                                                            : canCancelPayment(registration)
-                                                                ? 'Cancelar e Excluir'
-                                                                : 'Excluir Inscrição'
-                                                        }
-                                                    </button>
-                                                </>
+                                            {/* Pagamento - só mostra se estiver aprovado E pendente */}
+                                            {registration.paymentStatus === 'pending' && registration.status === 'approved' && (
+                                                <button
+                                                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition text-sm disabled:opacity-50"
+                                                    onClick={() => handlePayment(registration)}
+                                                    disabled={processingPayment === registration.id}
+                                                >
+                                                    {processingPayment === registration.id
+                                                        ? 'Processando...'
+                                                        : registration.paymentId
+                                                            ? '🔍 Visualizar PIX'
+                                                            : '💰 Realizar Pagamento'
+                                                    }
+                                                </button>
                                             )}
+
+                                            {/* Mensagens de status */}
+                                            {registration.paymentStatus === 'pending' && registration.status === 'pending' && (
+                                                <span className="text-yellow-600 text-sm font-medium bg-yellow-50 px-3 py-1 rounded">
+                                                    ⏳ Aguardando aprovação
+                                                </span>
+                                            )}
+
+                                            {registration.status === 'rejected' && (
+                                                <span className="text-red-600 text-sm font-medium bg-red-50 px-3 py-1 rounded">
+                                                    ❌ Inscrição rejeitada
+                                                </span>
+                                            )}
+
                                             {registration.paymentStatus === 'paid' && (
                                                 <span className="text-green-600 text-sm font-medium">
-                                                    ✅ Pagamento realizado - Entre em contato para cancelamento
+                                                    ✅ Pagamento realizado
                                                 </span>
+                                            )}
+
+                                            {/* Botão de excluir - disponível para todos os status exceto paid */}
+                                            {registration.paymentStatus !== 'paid' && (
+                                                <button
+                                                    onClick={() => handleDeleteRegistration(registration)}
+                                                    disabled={deletingId === registration.id}
+                                                    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition text-sm disabled:opacity-50"
+                                                >
+                                                    {deletingId === registration.id
+                                                        ? 'Excluindo...'
+                                                        : canCancelPayment(registration)
+                                                            ? 'Cancelar e Excluir'
+                                                            : 'Excluir Inscrição'
+                                                    }
+                                                </button>
                                             )}
                                         </div>
 

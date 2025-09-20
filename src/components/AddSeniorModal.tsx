@@ -195,7 +195,7 @@ export default function AddSeniorModal({
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium mb-1">Nome *</label>
+                        <label className="block text-sm font-medium mb-1">Nome (*)</label>
                         <input
                             type="text"
                             required
@@ -208,9 +208,10 @@ export default function AddSeniorModal({
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium mb-1">Email</label>
+                        <label className="block text-sm font-medium mb-1">Email (*)</label>
                         <input
                             type="email"
+                            required
                             value={formData.email}
                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                             className="w-full p-2 border border-gray-300 rounded"
@@ -220,7 +221,7 @@ export default function AddSeniorModal({
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium mb-1">Telefone *</label>
+                        <label className="block text-sm font-medium mb-1">Telefone (*)</label>
                         <input
                             type="tel"
                             required
@@ -234,7 +235,7 @@ export default function AddSeniorModal({
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium mb-1">CPF *</label>
+                        <label className="block text-sm font-medium mb-1">CPF (*)</label>
                         <input
                             type="text"
                             required

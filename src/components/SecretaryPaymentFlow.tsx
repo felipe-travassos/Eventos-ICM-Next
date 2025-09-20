@@ -251,8 +251,8 @@ export default function SecretaryPaymentFlow({
 
                         <SeniorAutocomplete
                             onSeniorSelect={handleSeniorSelect}
-                            selectedSenior={selectedSenior}
-                            secretaryId={userData?.uid || ''}
+                            selectedSenior={selectedSenior || null}
+                            secretaryId={userData?.id || ''}
                         />
 
                         {!selectedSenior ? (
