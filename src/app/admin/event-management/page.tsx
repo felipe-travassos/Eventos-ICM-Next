@@ -10,6 +10,7 @@ import Image from 'next/image';
 import { getChurchNameById } from '@/lib/firebase/churches';
 import EventReports from '@/components/Reports/EventReports';
 import Charts from '@/components/Reports/Charts';
+import EventBadge from '@/components/Events/EventBadge';
 
 // ✅ Usar UserRole importado para definir as roles permitidas
 const allowedRoles: UserRole[] = ['pastor', 'secretario_regional', 'secretario_local'];
@@ -30,6 +31,11 @@ export default function EventManagementPage() {
         registrationStatus: 'all',
     });
 
+    const [showBadgeModal, setShowBadgeModal] = useState<{
+        event: EventWithRegistrations;
+        registration: EventRegistration;
+    } | null>(null);
+
     const [generatingPayment, setGeneratingPayment] = useState<string | null>(null);
     const [showPixModal, setShowPixModal] = useState<{
         registration: EventRegistration;
@@ -40,6 +46,15 @@ export default function EventManagementPage() {
     const [approvalLoading, setApprovalLoading] = useState<string | null>(null);
     const { userData } = useAuth();
 
+    //Exibição do Crachá
+    const handleShowBadge = (registration: EventRegistration) => {
+        if (selectedEvent) {
+            setShowBadgeModal({
+                event: selectedEvent,
+                registration
+            });
+        }
+    };
 
     // Carregar eventos e inscrições
     // Mapeamento das inscrições:
@@ -792,6 +807,7 @@ export default function EventManagementPage() {
                                                                 {registration.createdAt.toLocaleDateString('pt-BR')}
                                                             </td>
                                                             <td className="border border-gray-300 p-2">
+
                                                                 {registration.status === 'pending' && (
                                                                     <div className="flex gap-2">
                                                                         <button
@@ -813,9 +829,14 @@ export default function EventManagementPage() {
                                                                         </button>
                                                                     </div>
                                                                 )}
+
                                                                 {registration.status === 'approved' && (
                                                                     <div className="flex flex-col gap-1">
                                                                         <span className="text-green-600 text-sm">✓ Aprovado</span>
+                                                                        {registration.paymentStatus === 'paid' && (
+
+                                                                            <span className="text-green-600 text-sm">✅ Pago</span>
+                                                                        )}
                                                                         {registration.paymentStatus === 'pending' && (
                                                                             <button
                                                                                 onClick={() => handleGeneratePixPayment(registration)}
@@ -830,11 +851,9 @@ export default function EventManagementPage() {
                                                                                 }
                                                                             </button>
                                                                         )}
-                                                                        {registration.paymentStatus === 'paid' && (
-                                                                            <span className="text-green-600 text-sm">✅ Pago</span>
-                                                                        )}
                                                                     </div>
                                                                 )}
+
                                                                 {registration.status === 'rejected' && (
                                                                     <div>
                                                                         <span className="text-red-600 text-sm">✗ Rejeitado</span>
@@ -845,6 +864,15 @@ export default function EventManagementPage() {
                                                                         )}
                                                                     </div>
                                                                 )}
+
+                                                                <button
+                                                                    onClick={() => handleShowBadge(registration)}
+                                                                    className="bg-yellow-500 text-white px-2 py-1 rounded text-xs hover:bg-yellow-600 mt-1"
+                                                                    title="Imprimir crachá"
+                                                                >
+                                                                    🎫 Crachá
+                                                                </button>
+
                                                             </td>
                                                         </tr>
                                                     ))}
@@ -936,28 +964,16 @@ export default function EventManagementPage() {
                                                                 </button>
                                                             </div>
                                                         )}
-                                                        {registration.status === 'approved' && (
-                                                            <div className="space-y-2">
-                                                                <div className="text-center text-green-600 text-sm">✓ Aprovado</div>
-                                                                {registration.paymentStatus === 'pending' && (
-                                                                    <button
-                                                                        onClick={() => handleGeneratePixPayment(registration)}
-                                                                        disabled={generatingPayment === registration.id}
-                                                                        className="w-full bg-blue-500 text-white px-3 py-2 rounded text-sm hover:bg-blue-600 disabled:opacity-50"
-                                                                    >
-                                                                        {generatingPayment === registration.id
-                                                                            ? 'Gerando PIX...'
-                                                                            : registration.paymentId && registration.paymentId !== ''
-                                                                                ? '🔍 Ver PIX Gerado'
-                                                                                : '💰 Gerar PIX'
-                                                                        }
-                                                                    </button>
-                                                                )}
-                                                                {registration.paymentStatus === 'paid' && (
-                                                                    <div className="text-center text-green-600 text-sm">✅ Pago</div>
-                                                                )}
-                                                            </div>
+
+                                                        {registration.status === 'approved' || registration.paymentStatus === 'paid' && (
+                                                            <button
+                                                                onClick={() => handleShowBadge(registration)}
+                                                                className="w-full bg-yellow-500 text-white px-3 py-2 rounded text-sm hover:bg-yellow-600 mt-2"
+                                                            >
+                                                                🎫 Gerar Crachá
+                                                            </button>
                                                         )}
+
                                                         {registration.status === 'rejected' && (
                                                             <div>
                                                                 <div className="text-center text-red-600 text-sm">✗ Rejeitado</div>
@@ -968,6 +984,14 @@ export default function EventManagementPage() {
                                                                 )}
                                                             </div>
                                                         )}
+
+                                                        <button
+                                                            onClick={() => handleShowBadge(registration)}
+                                                            className="w-full m-1 bg-yellow-500 text-white px-3 py-2 rounded text-sm hover:bg-yellow-600"
+                                                        >
+                                                            🎫 Gerar Crachá
+                                                        </button>
+
                                                     </div>
                                                 </div>
                                             ))}
@@ -1073,6 +1097,16 @@ export default function EventManagementPage() {
                     </div>
                 </div>
             )}
+
+            {showBadgeModal && (
+                <EventBadge
+                    event={showBadgeModal.event}
+                    registration={showBadgeModal.registration}
+                    onClose={() => setShowBadgeModal(null)}
+                />
+            )}
+
         </div>
+
     );
 }
