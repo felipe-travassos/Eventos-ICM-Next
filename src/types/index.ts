@@ -77,8 +77,8 @@ export interface EventCreate {
     date: Date;
     endDate?: Date;
     location: string;
-    capacity: number;
-    registered: number;
+    maxParticipants: number;
+    currentParticipants: number;
     price: number;
     churchId: string;
     churchName: string;

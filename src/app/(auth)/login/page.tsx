@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSonner } from '@/lib/sonner/useSonner';
 
 // Importando as imagens
 import splashImage from '@/assets/splash.png';
@@ -21,10 +22,11 @@ import logoImage from '@/assets/logo1.png';
 export default function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+
     const { login, currentUser } = useAuth();
     const router = useRouter();
+    const { error } = useSonner();
 
     // Redireciona usuários autenticados
     useEffect(() => {
@@ -42,12 +44,11 @@ export default function Login() {
         e.preventDefault();
 
         try {
-            setError('');
             setLoading(true);
             await login(email, password);
             router.push('/');
-        } catch (error: any) {
-            setError('Falha ao entrar: ' + error.message);
+        } catch (err: any) {
+            error('Falha ao entrar: ' + err.message);
         } finally {
             setLoading(false);
         }
@@ -102,24 +103,14 @@ export default function Login() {
                     </div>
 
                     <p className="mt-1 text-gray-600 text-xs md:text-sm">
-                        Acesse para gerenciar eventos da igreja
+                        Acesse para inscrições e gerenciamento eventos da igreja
                     </p>
                 </div>
-
-                {/* Mensagem de erro */}
-                {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg mb-4 flex items-start text-sm">
-                        <svg className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                        </svg>
-                        <span>{error}</span>
-                    </div>
-                )}
 
                 {/* Formulário de login */}
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-gray-700 mb-1 text-sm font-medium">Email</label>
+                        <label className="block text-gray-700 mb-1 text-sm font-medium">E-mail</label>
                         <input
                             type="email"
                             value={email}
@@ -145,7 +136,7 @@ export default function Login() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg disabled:opacity-50 font-medium transition duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 shadow-md hover:shadow-lg text-sm"
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg disabled:opacity-50 font-medium transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 shadow-md hover:shadow-lg text-sm"
                     >
                         {loading ? (
                             <span className="flex items-center justify-center">

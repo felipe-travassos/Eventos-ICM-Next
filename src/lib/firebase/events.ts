@@ -15,18 +15,6 @@ import {
 import { db } from '@/lib/firebase/config';
 import { EventRegistration, Event } from '@/types';
 
-// export const updatePaymentStatus = async (registrationId: string, status: 'pending' | 'paid' | 'refunded') => {
-//     try {
-//         await db.collection('eventRegistrations').doc(registrationId).update({
-//             paymentStatus: status,
-//             updatedAt: new Date(),
-//         });
-//         return { success: true };
-//     } catch (error) {
-//         console.error('Erro ao atualizar status:', error);
-//         return { success: false, error: 'Erro ao atualizar status' };
-//     }
-// };
 
 /**
  * Busca os detalhes completos de uma igreja pelo ID
@@ -150,10 +138,22 @@ export const deleteEventRegistration = async (registrationId: string, eventId: s
  */
 export const getEventsWithSync = async (): Promise<Event[]> => {
     try {
+        console.log('🔄 Iniciando sincronização de eventos...');
+
         // Buscar todos os eventos do Firestore
         const querySnapshot = await getDocs(collection(db, 'events'));
         const events = querySnapshot.docs.map(doc => {
             const data = doc.data();
+
+            // ✅ DEBUG: Log dos dados brutos
+            console.log('📄 Evento RAW:', {
+                id: doc.id,
+                title: data.title,
+                maxParticipantsRaw: data.maxParticipants,
+                currentParticipantsRaw: data.currentParticipants,
+                tipoMax: typeof data.maxParticipants,
+                tipoCurrent: typeof data.currentParticipants
+            });
 
             return {
                 id: doc.id,
@@ -172,10 +172,12 @@ export const getEventsWithSync = async (): Promise<Event[]> => {
             } as Event;
         });
 
-        // Verificar e sincronizar eventos com possíveis inconsistências
+        // ✅ CORREÇÃO: Verificar TODOS os eventos, não só os com currentParticipants > 0
         const syncPromises = events.map(async (event) => {
-            // Só verificar eventos que mostram ter participantes
-            if (event.currentParticipants > 0) {
+            try {
+                console.log(`🔍 Verificando evento ${event.id}: ${event.title}`);
+
+                // Buscar inscrições reais para ESTE evento
                 const registrationsQuery = query(
                     collection(db, 'registrations'),
                     where('eventId', '==', event.id),
@@ -185,23 +187,41 @@ export const getEventsWithSync = async (): Promise<Event[]> => {
                 const querySnapshot = await getDocs(registrationsQuery);
                 const actualParticipants = querySnapshot.size;
 
-                // Corrigir se houver diferença entre contador e inscrições reais
+                console.log(`📊 Evento ${event.id}:`, {
+                    contadorAtual: event.currentParticipants,
+                    inscricoesReais: actualParticipants,
+                    precisaCorrecao: event.currentParticipants !== actualParticipants
+                });
+
+                // ✅ CORREÇÃO: Sempre corrigir se houver diferença
                 if (event.currentParticipants !== actualParticipants) {
+                    console.log(`🔄 Corrigindo evento ${event.id}: de ${event.currentParticipants} para ${actualParticipants} participantes`);
+
                     await updateDoc(doc(db, 'events', event.id), {
                         currentParticipants: actualParticipants,
                         updatedAt: new Date()
                     });
-                    console.log(`Evento ${event.id} sincronizado: ${actualParticipants} participantes reais`);
+
+                    // Atualizar também no array local
+                    event.currentParticipants = actualParticipants;
+
+                    console.log(`✅ Evento ${event.id} sincronizado: ${actualParticipants} participantes reais`);
+                } else {
+                    console.log(`✓ Evento ${event.id} já está sincronizado: ${actualParticipants} participantes`);
                 }
+            } catch (error) {
+                console.error(`❌ Erro ao sincronizar evento ${event.id}:`, error);
             }
         });
 
         // Executar todas as sincronizações em paralelo
+        console.log('⏳ Executando sincronizações...');
         await Promise.all(syncPromises);
+        console.log('✅ Todas as sincronizações concluídas');
 
         return events;
     } catch (error) {
-        console.error('Erro ao buscar e sincronizar eventos:', error);
+        console.error('❌ Erro ao buscar e sincronizar eventos:', error);
         return [];
     }
 };
@@ -418,27 +438,36 @@ export const checkUserRegistration = async (eventId: string, userId: string): Pr
  * @param eventId - ID do evento a ser corrigido
  * @returns Promise<void>
  */
-export const fixEventRegistrationCount = async (eventId: string): Promise<void> => {
+export const fixEventsWithNullParticipants = async (): Promise<void> => {
     try {
-        // Contar inscrições ativas do evento
-        const registrationsQuery = query(
-            collection(db, 'registrations'),
-            where('eventId', '==', eventId),
-            where('status', 'in', ['pending', 'confirmed', 'paid'])
-        );
+        const eventsRef = collection(db, 'events');
+        const querySnapshot = await getDocs(eventsRef);
 
-        const querySnapshot = await getDocs(registrationsQuery);
-        const actualParticipants = querySnapshot.size;
+        const updatePromises = querySnapshot.docs.map(async (doc) => {
+            const data = doc.data();
 
-        // Atualizar contador do evento
-        await updateDoc(doc(db, 'events', eventId), {
-            currentParticipants: actualParticipants,
-            updatedAt: new Date()
+            // Se maxParticipants for null ou undefined, corrigir para 0
+            if (data.maxParticipants === null || data.maxParticipants === undefined) {
+                console.log(`🔧 Corrigindo evento ${doc.id}: maxParticipants de null para 0`);
+                await updateDoc(doc.ref, {
+                    maxParticipants: 0,
+                    updatedAt: new Date()
+                });
+            }
+
+            // Se currentParticipants for null ou undefined, corrigir para 0
+            if (data.currentParticipants === null || data.currentParticipants === undefined) {
+                console.log(`🔧 Corrigindo evento ${doc.id}: currentParticipants de null para 0`);
+                await updateDoc(doc.ref, {
+                    currentParticipants: 0,
+                    updatedAt: new Date()
+                });
+            }
         });
 
-        console.log(`Evento ${eventId} corrigido: ${actualParticipants} participantes reais`);
+        await Promise.all(updatePromises);
+        console.log('✅ Correção de eventos concluída');
     } catch (error) {
-        console.error('Erro ao corrigir contador do evento:', error);
-        throw error;
+        console.error('❌ Erro ao corrigir eventos:', error);
     }
 };

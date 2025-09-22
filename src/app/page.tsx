@@ -6,13 +6,16 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Event, EventRegistration } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+
 import {
   checkUserRegistration,
   getEventsWithSync,
   getUserRegistrations,
   registerForEvent
 } from '@/lib/firebase/events';
+
 import EventCard from '@/components/events/EventCard';
+import { useSonner } from '@/lib/sonner/useSonner';
 
 import SecretaryPaymentFlow from '@/components/SecretaryPaymentFlow';
 
@@ -33,18 +36,18 @@ export default function HomePage() {
 
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [registeringEventId, setRegisteringEventId] = useState<string | null>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [userRegistrations, setUserRegistrations] = useState<EventRegistration[]>([]);
-  const [loadingRegistrations, setLoadingRegistrations] = useState(false);
+
+  const [loadingRegistrations, setLoadingRegistrations] = useState(true);
 
   const [showSecretaryFlow, setShowSecretaryFlow] = useState(false);
-
 
   const carouselRef = useRef<HTMLDivElement>(null);
   const { userData, currentUser, loading: authLoading } = useAuth();
   const router = useRouter();
+  const { error, warning, success } = useSonner();
 
   /**
    * Verifica se o perfil do usuário está completo
@@ -61,15 +64,20 @@ export default function HomePage() {
       if (currentUser) {
         setLoadingRegistrations(true);
         try {
+          console.log('🔄 Carregando inscrições para usuário:', currentUser.uid);
           const registrations = await getUserRegistrations(currentUser.uid);
+          console.log('📋 Inscrições carregadas:', registrations);
           setUserRegistrations(registrations);
         } catch (error) {
-          console.error('Erro ao carregar inscrições:', error);
+          console.error('❌ Erro ao carregar inscrições:', error);
+          setUserRegistrations([]);
         } finally {
           setLoadingRegistrations(false);
         }
       } else {
+        console.log('👤 Usuário não logado, limpando inscrições');
         setUserRegistrations([]);
+        setLoadingRegistrations(false);
       }
     };
 
@@ -83,12 +91,14 @@ export default function HomePage() {
     const fetchEvents = async () => {
       try {
         setLoading(true);
+        console.log('🔄 Carregando eventos...');
         const eventsData = await getEventsWithSync();
+        console.log('🎯 Eventos carregados:', eventsData.length);
         const activeEvents = eventsData.filter((event: Event) => event.status === 'active');
         setEvents(activeEvents);
       } catch (error) {
-        console.error('Erro ao buscar eventos:', error);
-        setError('Erro ao carregar eventos. Tente novamente.');
+        console.error('❌ Erro ao buscar eventos:', error);
+        setEvents([]);
       } finally {
         setLoading(false);
       }
@@ -96,6 +106,7 @@ export default function HomePage() {
 
     fetchEvents();
   }, []);
+
 
   /**
    * Configura o auto-rotate do carrossel
@@ -131,26 +142,26 @@ export default function HomePage() {
     }
 
     if (profileErrors.length > 0) {
-      alert(`Complete seu perfil antes de se inscrever:\n${profileErrors.join('\n')}\n\nAcesse "Meu Perfil" para completar seus dados.`);
+      warning(`Complete seu perfil antes de se inscrever:\n${profileErrors.join('\n')}\n\nAcesse "Meu Perfil" para completar seus dados.`);
       router.push('/profile');
       return;
     }
 
     const event = events.find(e => e.id === eventId);
     if (!event) {
-      alert('Evento não encontrado');
+      warning('Evento não encontrado');
       return;
     }
     if (event.currentParticipants >= event.maxParticipants) {
-      alert('Não há vagas disponíveis para este evento');
+      warning('Não há vagas disponíveis para este evento');
       return;
     }
-
     setRegisteringEventId(eventId);
+
     try {
       const alreadyRegistered = await checkUserRegistration(eventId, currentUser.uid);
       if (alreadyRegistered) {
-        alert('Você já está inscrito neste evento');
+        warning('Você já está inscrito neste evento');
         return;
       }
 
@@ -166,19 +177,23 @@ export default function HomePage() {
       );
 
       if (result.success) {
-        alert(result.message);
+        success('✅ Inscrição realizada com sucesso!');
+
+        //Recarrega as inscrições após sucesso
         const updatedRegistrations = await getUserRegistrations(currentUser.uid);
         setUserRegistrations(updatedRegistrations);
+        console.log('🔄 Inscrições atualizadas após registro:', updatedRegistrations);
 
+        // Atualiza a lista de eventos para refletir o novo participante
         const updatedEvents = await getEventsWithSync();
         const activeEvents = updatedEvents.filter((event: Event) => event.status === 'active');
         setEvents(activeEvents);
       } else {
-        alert(result.message);
+        error(result.message);
       }
     } catch (error: any) {
       console.error('Erro na inscrição:', error);
-      alert(error.message || 'Erro ao realizar inscrição.');
+      error(error.message || 'Erro ao realizar inscrição.');
     } finally {
       setRegisteringEventId(null);
     }
@@ -198,12 +213,12 @@ export default function HomePage() {
   };
 
   // Estado de carregamento
-  if (authLoading || loading) {
+  if (authLoading || loading || loadingRegistrations) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Carregando...</p>
+          <p className="mt-4 text-gray-600">Carregando eventos e inscrições...</p>
         </div>
       </div>
     );
@@ -269,12 +284,6 @@ export default function HomePage() {
       <section className="py-12 container mx-auto px-4">
         <h2 className="text-3xl font-bold text-center mb-12">Eventos em Destaque</h2>
 
-        {error && (
-          <div className="bg-red-100 text-red-800 p-4 rounded-lg text-center mb-8">
-            <p>{error}</p>
-          </div>
-        )}
-
         {events.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg mb-4">Nenhum evento disponível no momento.</p>
@@ -303,6 +312,7 @@ export default function HomePage() {
                       onSubscribe={handleSubscribe}
                       isSubscribing={registeringEventId === event.id}
                       userRegistrations={userRegistrations}
+                      showRegistration={true}
                     />
                   </div>
                 ))}
@@ -389,6 +399,8 @@ export default function HomePage() {
           )}
         </div>
       </section>
+
+
       {/* Modal da Área do Secretário */}
       {
         showSecretaryFlow && (

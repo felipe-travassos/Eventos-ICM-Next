@@ -78,8 +78,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
+    /**
+     * Componente de contexto para reset de senha
+     */
     const resetPassword = async (email: string) => {
-        await sendPasswordResetEmail(auth, email);
+        try {
+            // Validação básica do email
+            if (!email || !email.includes('@')) {
+                throw new Error('Por favor, insira um email válido');
+            }
+
+            // Verifica se o email está formatado corretamente
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                throw new Error('Formato de email inválido');
+            }
+
+            await sendPasswordResetEmail(auth, email);
+            return { success: true };
+        } catch (error: any) {
+            console.error('Erro no resetPassword:', error);
+
+            // Tratamento específico de erros do Firebase
+            let errorMessage = 'Erro ao enviar email de redefinição';
+
+            switch (error.code) {
+                case 'auth/invalid-email':
+                    errorMessage = 'Email inválido';
+                    break;
+                case 'auth/user-not-found':
+                    errorMessage = 'Nenhuma conta encontrada com este email';
+                    break;
+                case 'auth/too-many-requests':
+                    errorMessage = 'Muitas tentativas. Tente novamente mais tarde';
+                    break;
+                case 'auth/network-request-failed':
+                    errorMessage = 'Erro de conexão. Verifique sua internet';
+                    break;
+                default:
+                    errorMessage = error.message || 'Erro desconhecido';
+            }
+
+            throw new Error(errorMessage);
+        }
     };
 
     const updateUserData = (newData: Partial<User>) => {
@@ -135,55 +176,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return unsubscribeAuth;
     }, []);
 
-    // ✅ Se realmente precisar de updates em tempo real, use esta versão com cleanup
-    /*
-    useEffect(() => {
-        const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-            setCurrentUser(user);
-
-            // Limpar listener anterior
-            if (unsubscribeRef.current) {
-                unsubscribeRef.current();
-                unsubscribeRef.current = null;
-            }
-
-            if (user) {
-                // Criar novo listener
-                unsubscribeRef.current = onSnapshot(doc(db, 'users', user.uid), (doc) => {
-                    if (doc.exists()) {
-                        const data = doc.data();
-                        setUserData({
-                            id: doc.id,
-                            uid: user.uid,
-                            churchId: data.churchId || '',
-                            cpf: data.cpf || '',
-                            name: data.name || '',
-                            email: data.email || '',
-                            phone: data.phone || '',
-                            role: data.role || 'membro',
-                            createdAt: data.createdAt?.toDate() || new Date(),
-                            updatedAt: data.updatedAt?.toDate() || new Date(),
-                            churchName: data.churchName || ''
-                        });
-                    } else {
-                        setUserData(null);
-                    }
-                    setLoading(false);
-                });
-            } else {
-                setUserData(null);
-                setLoading(false);
-            }
-        });
-
-        return () => {
-            unsubscribeAuth();
-            if (unsubscribeRef.current) {
-                unsubscribeRef.current();
-            }
-        };
-    }, []);
-    */
 
     const contextValue: AuthContextType = {
         currentUser,

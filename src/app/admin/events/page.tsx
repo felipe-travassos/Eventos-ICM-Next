@@ -15,6 +15,7 @@ import {
     extractImagePathFromURL
 } from '@/lib/firebase/storage';
 import bannerImage from '@/assets/fotoDM.png';
+import { fixEventsWithNullParticipants, getEventsWithSync } from '@/lib/firebase/events';
 
 export default function AdminEvents() {
     const [title, setTitle] = useState('');
@@ -40,38 +41,84 @@ export default function AdminEvents() {
         }
     }, [userData, router]);
 
+    //fetch nos eventos
     useEffect(() => {
         const fetchEvents = async () => {
             try {
-                const querySnapshot = await getDocs(collection(db, 'events'));
-                const eventsData: Event[] = [];
+                console.log('🔄 Iniciando carregamento de eventos...');
 
-                querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    eventsData.push({
-                        id: doc.id,
-                        ...data,
-                        date: data.date.toDate(),
-                        createdAt: data.createdAt.toDate(),
-                        currentParticipants: data.currentParticipants || 0,
-                        status: data.status || 'active'
-                    } as Event);
+                // ✅ USE A FUNÇÃO QUE SINCRONIZA OS PARTICIPANTES
+                const eventsData = await getEventsWithSync();
+
+                console.log('🎯 Eventos carregados com sincronização:', eventsData.length);
+
+                // ✅ DEBUG: Mostrar detalhes de cada evento
+                eventsData.forEach(event => {
+                    console.log('📊 Evento:', {
+                        id: event.id,
+                        title: event.title,
+                        currentParticipants: event.currentParticipants,
+                        maxParticipants: event.maxParticipants,
+                        tipoCurrent: typeof event.currentParticipants,
+                        tipoMax: typeof event.maxParticipants,
+                        calculo: event.maxParticipants > 0 ?
+                            `(${event.currentParticipants}/${event.maxParticipants}) = ${Math.round((event.currentParticipants / event.maxParticipants) * 100)}%` :
+                            'Sem limite'
+                    });
                 });
 
                 setEvents(eventsData);
             } catch (error) {
-                console.error('Erro ao buscar eventos:', error);
+                console.error('❌ Erro ao buscar eventos:', error);
             }
         };
 
         if (userData?.role && ['pastor', 'secretario_regional', 'secretario_local'].includes(userData.role)) {
             fetchEvents();
         }
+
+        // ✅ Chame a correção apenas uma vez
+        fixEventsWithNullParticipants();
     }, [userData]);
 
+    // Adicione esta validação antes de salvar
+    const validateForm = () => {
+        if (!title.trim()) {
+            alert('Título é obrigatório');
+            return false;
+        }
+        if (!date) {
+            alert('Data é obrigatória');
+            return false;
+        }
+        if (!location.trim()) {
+            alert('Local é obrigatório');
+            return false;
+        }
+
+        // ✅ VALIDAÇÃO ESPECÍFICA PARA maxParticipants
+        const maxParticipantsNum = maxParticipants ? parseInt(maxParticipants) : 0;
+        if (maxParticipantsNum < 0) {
+            alert('Número de participantes não pode ser negativo');
+            return false;
+        }
+        if (maxParticipantsNum > 1000) { // Ajuste o limite conforme necessário
+            alert('Número máximo de participantes muito alto');
+            return false;
+        }
+
+        return true;
+    };
+
+    //Edita ou cria um novo evento
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!userData) return;
+
+        // ✅ VALIDAÇÃO DO FORMULÁRIO
+        if (!validateForm()) {
+            return;
+        }
 
         setLoading(true);
         try {
@@ -92,15 +139,27 @@ export default function AdminEvents() {
 
             const eventDateTime = new Date(`${date}T${time}`);
 
+            // ✅ CORREÇÃO: Garantir que maxParticipants seja sempre número
+            const maxParticipantsNumber = maxParticipants ? parseInt(maxParticipants) : 0;
+            const priceNumber = price ? parseFloat(price) : 0;
+
+            console.log('📊 Dados do evento antes de salvar:', {
+                title,
+                maxParticipants: maxParticipantsNumber,
+                price: priceNumber,
+                hasImage: !!imageURL
+            });
+
             if (editingEvent) {
                 await updateDoc(doc(db, 'events', editingEvent.id), {
                     title,
                     description,
                     date: eventDateTime,
                     location,
-                    maxParticipants: maxParticipants ? parseInt(maxParticipants) : null,
-                    price: price ? parseFloat(price) : 0,
-                    imageURL: imageURL || editingEvent.imageURL
+                    maxParticipants: maxParticipantsNumber,
+                    price: priceNumber,
+                    imageURL: imageURL || editingEvent.imageURL,
+                    updatedAt: new Date()
                 });
 
                 setEditingEvent(null);
@@ -111,12 +170,13 @@ export default function AdminEvents() {
                     description,
                     date: eventDateTime,
                     location,
-                    maxParticipants: maxParticipants ? parseInt(maxParticipants) : null,
-                    price: price ? parseFloat(price) : 0,
+                    maxParticipants: maxParticipantsNumber,
                     currentParticipants: 0,
+                    price: priceNumber,
                     status: 'active',
                     imageURL,
                     createdAt: new Date(),
+                    updatedAt: new Date(), // ✅ Adicionar updatedAt
                     createdBy: userData.id
                 });
 
@@ -124,21 +184,9 @@ export default function AdminEvents() {
             }
 
             resetForm();
-            const querySnapshot = await getDocs(collection(db, 'events'));
-            const eventsData: Event[] = [];
 
-            querySnapshot.forEach((doc) => {
-                const data = doc.data();
-                eventsData.push({
-                    id: doc.id,
-                    ...data,
-                    date: data.date.toDate(),
-                    createdAt: data.createdAt.toDate(),
-                    currentParticipants: data.currentParticipants || 0,
-                    status: data.status || 'active'
-                } as Event);
-            });
-
+            // ✅ MELHORIA: Use a função existente para buscar eventos
+            const eventsData = await getEventsWithSync(); // Ou getAllEvents()
             setEvents(eventsData);
 
         } catch (error) {
@@ -428,7 +476,7 @@ export default function AdminEvents() {
                                 value={price}
                                 onChange={(e) => setPrice(e.target.value)}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                placeholder="0.00"
+                                placeholder="Preço da Inscrição"
                                 required
                             />
                         </div>
@@ -444,7 +492,7 @@ export default function AdminEvents() {
                                 onChange={(e) => setMaxParticipants(e.target.value)}
                                 min="1"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                                placeholder="Deixe em branco para ilimitado"
+                                placeholder="Total de vagas disponíveis"
                             />
                         </div>
 
@@ -565,17 +613,46 @@ export default function AdminEvents() {
                                     <p><strong>Data:</strong> {event.date.toLocaleDateString('pt-BR')}</p>
                                     <p><strong>Hora:</strong> {event.date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
                                     <p><strong>Local:</strong> {event.location}</p>
-                                    <p><strong>Taxa de Inscrição:</strong> {`R$ ${event?.price}`}</p>
-                                    <p><strong>Inscrições:</strong> {event.currentParticipants}{event.maxParticipants ? `/${event.maxParticipants}` : ''}</p>
+                                    <p><strong>Taxa de Inscrição:</strong> {`R$ ${event?.price.toFixed(2)}`}</p>
 
-                                    {event.maxParticipants && (
-                                        <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
-                                            <div
-                                                className="bg-blue-600 h-2 rounded-full"
-                                                style={{
-                                                    width: `${(event.currentParticipants / event.maxParticipants) * 100}%`
-                                                }}
-                                            ></div>
+                                    {/* ✅ MELHORIA: Exibição mais inteligente das inscrições */}
+                                    <p><strong>Inscrições:</strong>
+                                        {event.maxParticipants > 0
+                                            ? `${event.currentParticipants}/${event.maxParticipants}`
+                                            : event.currentParticipants
+                                        }
+                                        {event.maxParticipants > 0 && (
+                                            <span className="ml-2 text-xs text-gray-500">
+                                                ({Math.round((event.currentParticipants / event.maxParticipants) * 100)}%)
+                                            </span>
+                                        )}
+                                    </p>
+
+                                    {/* ✅ CORREÇÃO DEFINITIVA: Barra de progresso */}
+                                    {event.maxParticipants > 0 && (
+                                        <div className="mt-2">
+                                            <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                                <span>Progresso de vagas</span>
+                                                <span>
+                                                    {event.currentParticipants >= event.maxParticipants
+                                                        ? '🎟️ ESGOTADO'
+                                                        : `${Math.round((event.currentParticipants / event.maxParticipants) * 100)}% preenchido`
+                                                    }
+                                                </span>
+                                            </div>
+                                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                                <div
+                                                    className={`h-2 rounded-full transition-all duration-300 ${event.currentParticipants >= event.maxParticipants
+                                                        ? 'bg-red-500'
+                                                        : (event.currentParticipants / event.maxParticipants) > 0.8
+                                                            ? 'bg-yellow-500'
+                                                            : 'bg-green-500'
+                                                        }`}
+                                                    style={{
+                                                        width: `${Math.min(100, (event.currentParticipants / event.maxParticipants) * 100)}%`
+                                                    }}
+                                                ></div>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
