@@ -181,7 +181,7 @@ export const getEventsWithSync = async (): Promise<Event[]> => {
                 const registrationsQuery = query(
                     collection(db, 'registrations'),
                     where('eventId', '==', event.id),
-                    where('status', 'in', ['pending', 'confirmed', 'paid'])
+                    where('status', 'in', ['pending', 'approved', 'confirmed', 'paid'])
                 );
 
                 const querySnapshot = await getDocs(registrationsQuery);
@@ -421,7 +421,7 @@ export const checkUserRegistration = async (eventId: string, userId: string): Pr
             collection(db, 'registrations'),
             where('eventId', '==', eventId),
             where('userId', '==', userId),
-            where('status', 'in', ['pending', 'confirmed', 'paid'])
+            where('status', 'in', ['pending', 'approved', 'confirmed', 'paid'])
         );
 
         const querySnapshot = await getDocs(q);

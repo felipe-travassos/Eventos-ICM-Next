@@ -25,6 +25,11 @@ export interface EventRegistration {
     approvedAt?: Date;
     rejectionReason?: string;
     rejectedBy?: string;
+    // Campos de presença
+    checkedIn?: boolean;
+    checkedInAt?: Date;
+    checkedInBy?: string;
+    checkedInByName?: string;
     createdAt: Date;
     updatedAt: Date;
 
@@ -185,4 +190,4 @@ export interface Senior {
     createdBy: string;
     createdAt: Date;
     updatedAt: Date;
-} 
+}

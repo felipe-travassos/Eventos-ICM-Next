@@ -75,6 +75,12 @@ export default function AdminEvents() {
 
         if (userData?.role && ['pastor', 'secretario_regional', 'secretario_local'].includes(userData.role)) {
             fetchEvents();
+            
+            // Configurar atualização automática a cada 30 segundos
+            const intervalId = setInterval(fetchEvents, 30000);
+            
+            // Limpar intervalo quando o componente for desmontado
+            return () => clearInterval(intervalId);
         }
 
         // ✅ Chame a correção apenas uma vez

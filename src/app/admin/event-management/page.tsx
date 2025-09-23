@@ -638,6 +638,14 @@ export default function EventManagementPage() {
                                     >
                                         🔄 Atualizar
                                     </button>
+                                    {(userData?.role === 'secretario_local' || userData?.role === 'secretario_regional') && (
+                                        <button
+                                            onClick={() => window.open(`/admin/checkin/${selectedEvent.id}`, '_blank')}
+                                            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                                        >
+                                            📱 Check-in
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
@@ -965,13 +973,36 @@ export default function EventManagementPage() {
                                                             </div>
                                                         )}
 
-                                                        {registration.status === 'approved' || registration.paymentStatus === 'paid' && (
-                                                            <button
-                                                                onClick={() => handleShowBadge(registration)}
-                                                                className="w-full bg-yellow-500 text-white px-3 py-2 rounded text-sm hover:bg-yellow-600 mt-2"
-                                                            >
-                                                                🎫 Gerar Crachá
-                                                            </button>
+                                                        {registration.status === 'approved' && (
+                                                            <div className="space-y-2">
+                                                                <div className="text-center text-green-600 text-sm">✓ Aprovado</div>
+                                                                
+                                                                {registration.paymentStatus === 'paid' && (
+                                                                    <div className="text-center text-green-600 text-sm">✅ Pago</div>
+                                                                )}
+                                                                
+                                                                {registration.paymentStatus === 'pending' && (
+                                                                    <button
+                                                                        onClick={() => handleGeneratePixPayment(registration)}
+                                                                        disabled={generatingPayment === registration.id}
+                                                                        className="w-full bg-blue-500 text-white px-3 py-2 rounded text-sm hover:bg-blue-600 disabled:opacity-50"
+                                                                    >
+                                                                        {generatingPayment === registration.id
+                                                                            ? 'Gerando PIX...'
+                                                                            : registration.paymentId && registration.paymentId !== ''
+                                                                                ? '🔍 Ver PIX'
+                                                                                : '💰 Gerar PIX'
+                                                                        }
+                                                                    </button>
+                                                                )}
+                                                                
+                                                                <button
+                                                                    onClick={() => handleShowBadge(registration)}
+                                                                    className="w-full bg-yellow-500 text-white px-3 py-2 rounded text-sm hover:bg-yellow-600"
+                                                                >
+                                                                    🎫 Gerar Crachá
+                                                                </button>
+                                                            </div>
                                                         )}
 
                                                         {registration.status === 'rejected' && (
@@ -982,15 +1013,14 @@ export default function EventManagementPage() {
                                                                         Motivo: {registration.rejectionReason}
                                                                     </div>
                                                                 )}
+                                                                <button
+                                                                    onClick={() => handleShowBadge(registration)}
+                                                                    className="w-full bg-yellow-500 text-white px-3 py-2 rounded text-sm hover:bg-yellow-600 mt-2"
+                                                                >
+                                                                    🎫 Gerar Crachá
+                                                                </button>
                                                             </div>
                                                         )}
-
-                                                        <button
-                                                            onClick={() => handleShowBadge(registration)}
-                                                            className="w-full m-1 bg-yellow-500 text-white px-3 py-2 rounded text-sm hover:bg-yellow-600"
-                                                        >
-                                                            🎫 Gerar Crachá
-                                                        </button>
 
                                                     </div>
                                                 </div>

@@ -96,6 +96,20 @@ export default function HomePage() {
         console.log('🎯 Eventos carregados:', eventsData.length);
         const activeEvents = eventsData.filter((event: Event) => event.status === 'active');
         setEvents(activeEvents);
+        
+        // Configurar atualização automática a cada 60 segundos
+        const intervalId = setInterval(async () => {
+          try {
+            console.log('🔄 Atualizando eventos automaticamente...');
+            const refreshedEvents = await getEventsWithSync();
+            const refreshedActiveEvents = refreshedEvents.filter((event: Event) => event.status === 'active');
+            setEvents(refreshedActiveEvents);
+          } catch (err) {
+            console.error('❌ Erro na atualização automática:', err);
+          }
+        }, 60000);
+        
+        return () => clearInterval(intervalId);
       } catch (error) {
         console.error('❌ Erro ao buscar eventos:', error);
         setEvents([]);
@@ -153,8 +167,9 @@ export default function HomePage() {
       return;
     }
     if (event.currentParticipants >= event.maxParticipants) {
+      setRegisteringEventId(null);
       warning('Não há vagas disponíveis para este evento');
-      return;
+      throw new Error('Não há vagas disponíveis para este evento');
     }
     setRegisteringEventId(eventId);
 

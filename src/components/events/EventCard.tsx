@@ -116,7 +116,13 @@ const EventCard: React.FC<EventCardProps> = ({
                         </svg>
                         {event.location}
                     </p>
-                    <p className="text-gray-600">Valor: R$ {event.price.toFixed(2)}</p>
+                    <div className="flex justify-between items-center">
+                        <p className="text-gray-600">Valor: R$ {event.price.toFixed(2)}</p>
+                        <span className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
+                            {event.currentParticipants || 0} inscritos
+                            {event.maxParticipants > 0 ? ` / ${event.maxParticipants}` : ''}
+                        </span>
+                    </div>
                 </div>
 
                 <p className="text-gray-700 mb-4 line-clamp-3">{event.description}</p>
