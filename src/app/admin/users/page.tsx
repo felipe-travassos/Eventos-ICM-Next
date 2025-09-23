@@ -12,6 +12,8 @@ export default function AdminUsersPage() {
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState<string | null>(null);
+    const [nameFilter, setNameFilter] = useState('');
+    const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
 
     useEffect(() => {
         // Verificar permissões
@@ -52,6 +54,20 @@ export default function AdminUsersPage() {
         } finally {
             setUpdating(null);
         }
+    };
+
+    // Filtrar usuários baseado nos filtros aplicados
+    const filteredUsers = users.filter(user => {
+        const matchesName = user.name.toLowerCase().includes(nameFilter.toLowerCase()) ||
+                           user.email.toLowerCase().includes(nameFilter.toLowerCase());
+        const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+        return matchesName && matchesRole;
+    });
+
+    // Função para limpar filtros
+    const clearFilters = () => {
+        setNameFilter('');
+        setRoleFilter('all');
     };
 
     const getRoleColor = (role: UserRole) => {
@@ -105,6 +121,68 @@ export default function AdminUsersPage() {
         <div className="container mx-auto p-4">
             <h1 className="text-2xl font-bold mb-6">Gerenciar Usuários</h1>
 
+            {/* Seção de Filtros */}
+            <div className="bg-white p-4 rounded-lg shadow-md mb-6">
+                <h2 className="text-lg font-semibold mb-4 text-gray-800">Filtros</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Filtro por Nome/Email */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Buscar por Nome ou Email
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="Digite o nome ou email..."
+                            value={nameFilter}
+                            onChange={(e) => setNameFilter(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                    </div>
+
+                    {/* Filtro por Função */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Filtrar por Função
+                        </label>
+                        <select
+                            value={roleFilter}
+                            onChange={(e) => setRoleFilter(e.target.value as UserRole | 'all')}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                            <option value="all">Todas as Funções</option>
+                            <option value="membro">Membro</option>
+                            <option value="pastor">Pastor</option>
+                            <option value="secretario_local">Secretário Local</option>
+                            <option value="secretario_regional">Secretário Regional</option>
+                        </select>
+                    </div>
+
+                    {/* Botões de Ação */}
+                    <div className="flex items-end">
+                        <button
+                            onClick={clearFilters}
+                            className="w-full px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors duration-200"
+                        >
+                            Limpar Filtros
+                        </button>
+                    </div>
+                </div>
+
+                {/* Contador de Resultados */}
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-sm text-gray-600">
+                        Mostrando <span className="font-semibold">{filteredUsers.length}</span> de{' '}
+                        <span className="font-semibold">{users.length}</span> usuários
+                        {(nameFilter || roleFilter !== 'all') && (
+                            <span className="ml-2 text-blue-600">
+                                (filtros aplicados)
+                            </span>
+                        )}
+                    </p>
+                </div>
+            </div>
+
             <div className="bg-white p-6 rounded-lg shadow-md">
                 {/* Tabela para desktop */}
                 <div className="hidden md:block overflow-x-auto">
@@ -119,7 +197,7 @@ export default function AdminUsersPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {users.map((user) => (
+                            {filteredUsers.map((user) => (
                                 <tr key={user.id} className="border-b hover:bg-gray-50">
                                     <td className="p-3">{user.name}</td>
                                     <td className="p-3">{user.email}</td>
@@ -155,7 +233,7 @@ export default function AdminUsersPage() {
 
                 {/* Cards para mobile */}
                 <div className="md:hidden space-y-4">
-                    {users.map((user) => (
+                    {filteredUsers.map((user) => (
                         <div key={user.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                             <div className="space-y-3">
                                 <div>
@@ -201,9 +279,22 @@ export default function AdminUsersPage() {
                     ))}
                 </div>
 
-                {users.length === 0 && (
+                {filteredUsers.length === 0 && (
                     <div className="text-center py-8">
-                        <p className="text-gray-500">Nenhum usuário encontrado.</p>
+                        <p className="text-gray-500">
+                            {nameFilter || roleFilter !== 'all' 
+                                ? 'Nenhum usuário encontrado com os filtros aplicados.' 
+                                : 'Nenhum usuário encontrado.'
+                            }
+                        </p>
+                        {(nameFilter || roleFilter !== 'all') && (
+                            <button
+                                onClick={clearFilters}
+                                className="mt-2 text-blue-600 hover:text-blue-800 underline"
+                            >
+                                Limpar filtros
+                            </button>
+                        )}
                     </div>
                 )}
             </div>

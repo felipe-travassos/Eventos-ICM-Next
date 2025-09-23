@@ -270,7 +270,7 @@ export const getAllEvents = async (): Promise<Event[]> => {
 export const registerForEvent = async (
     eventId: string,
     userId: string,
-    userData: { name: string; email: string; phone: string; church: string }
+    userData: { name: string; email: string; phone: string; church: string; cpf?: string }
 ): Promise<{ success: boolean; message: string }> => {
     try {
         // Validações de dados obrigatórios
@@ -308,6 +308,15 @@ export const registerForEvent = async (
             return { success: false, message: 'Você já está inscrito neste evento' };
         }
 
+        // Verificar se CPF já está inscrito no evento (se CPF foi fornecido)
+        if (userData.cpf) {
+            const cpfAlreadyRegistered = await checkCpfRegistration(eventId, userData.cpf);
+            if (cpfAlreadyRegistered) {
+                console.log('CPF já inscrito no evento');
+                return { success: false, message: 'Este CPF já possui uma inscrição neste evento' };
+            }
+        }
+
         // Buscar detalhes completos da igreja
         let churchName = 'Igreja não encontrada';
         let pastorName = 'Pastor não informado';
@@ -334,6 +343,7 @@ export const registerForEvent = async (
             userChurch: userData.church, // ID da igreja
             churchName: churchName,      // Nome da igreja
             pastorName: pastorName,      // Nome do pastor
+            userCpf: userData.cpf ? userData.cpf.replace(/\D/g, '') : '', // CPF limpo (apenas números)
             status: 'pending',
             paymentStatus: 'pending',
             createdAt: new Date(),
@@ -428,6 +438,32 @@ export const checkUserRegistration = async (eventId: string, userId: string): Pr
         return !querySnapshot.empty;
     } catch (error) {
         console.error('Erro ao verificar inscrição do usuário:', error);
+        return false;
+    }
+};
+
+/**
+ * Verifica se um CPF já está inscrito em um evento
+ * @param eventId - ID do evento
+ * @param cpf - CPF a ser verificado (apenas números)
+ * @returns Promise<boolean> - True se CPF já está inscrito
+ */
+export const checkCpfRegistration = async (eventId: string, cpf: string): Promise<boolean> => {
+    try {
+        // Remove formatação do CPF para comparação
+        const cleanCpf = cpf.replace(/\D/g, '');
+        
+        const q = query(
+            collection(db, 'registrations'),
+            where('eventId', '==', eventId),
+            where('userCpf', '==', cleanCpf),
+            where('status', 'in', ['pending', 'approved', 'confirmed', 'paid'])
+        );
+
+        const querySnapshot = await getDocs(q);
+        return !querySnapshot.empty;
+    } catch (error) {
+        console.error('Erro ao verificar CPF na inscrição:', error);
         return false;
     }
 };

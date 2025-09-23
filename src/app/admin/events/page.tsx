@@ -214,7 +214,7 @@ export default function AdminEvents() {
 
             setEvents(events.map(event =>
                 event.id === eventId
-                    ? { ...event, status: 'canceled' as const }
+                    ? { ...event, status: 'ended' as const }
                     : event
             ));
 
@@ -345,7 +345,7 @@ export default function AdminEvents() {
     };
 
     const activeEvents = events.filter(event => event.status === 'active');
-    const endedEvents = events.filter(event => event.status === 'canceled');
+    const endedEvents = events.filter(event => event.status === 'ended');
 
     if (!userData || !['pastor', 'secretario_regional', 'secretario_local'].includes(userData.role)) {
         return (

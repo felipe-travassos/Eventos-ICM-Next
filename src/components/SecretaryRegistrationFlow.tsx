@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import SeniorAutocomplete from './SeniorAutocomplete';
+import PersonAutocomplete from './PersonAutocomplete';
 import AddSeniorModal from './AddSeniorModal';
 import PaymentModal from './PaymentModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -157,9 +157,9 @@ export default function SecretaryRegistrationFlow({
                 </p>
             </div>
 
-            <SeniorAutocomplete
-                onSeniorSelect={handleSeniorSelect}
-                selectedSenior={selectedSenior}
+            <PersonAutocomplete
+                onPersonSelect={handleSeniorSelect}
+                selectedPerson={selectedSenior}
                 secretaryId={userData?.uid || ''}
             />
 

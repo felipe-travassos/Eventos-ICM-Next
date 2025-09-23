@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import SeniorAutocomplete from './SeniorAutocomplete';
+import PersonAutocomplete from './PersonAutocomplete';
 import AddSeniorModal from './AddSeniorModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { Event } from '@/types';
@@ -155,6 +155,21 @@ export default function SecretaryPaymentFlow({
                 return;
             }
 
+            // 1.5. Verificar se CPF já está inscrito no evento
+            const cpfQuery = query(
+                registrationsRef,
+                where('eventId', '==', selectedEvent.id),
+                where('userCpf', '==', selectedSenior.cpf)
+            );
+
+            const cpfQuerySnapshot = await getDocs(cpfQuery);
+
+            if (!cpfQuerySnapshot.empty) {
+                alert('❌ Este CPF já possui uma inscrição neste evento.');
+                setLoading(false);
+                return;
+            }
+
             // 2. Criar nova inscrição diretamente no Firestore
             const registrationData = {
                 // Dados do evento
@@ -213,9 +228,9 @@ export default function SecretaryPaymentFlow({
     return (
         <div className="space-y-6">
             <div className="bg-blue-100 p-4 rounded-lg border border-blue-200">
-                <h3 className="font-semibold text-blue-800 mb-2 text-lg">👨‍💼 Inscrição de Idoso por Secretário</h3>
+                <h3 className="font-semibold text-blue-800 mb-2 text-lg">👨‍💼 Inscrição Avulsa por Secretário</h3>
                 <p className="text-blue-700 text-sm">
-                    Selecione um evento disponível e depois escolha ou cadastre um idoso para realizar a inscrição.
+                    Selecione um evento disponível e depois escolha ou cadastre uma pessoa para realizar a inscrição.
                     A inscrição ficará pendente até aprovação.
                 </p>
             </div>
@@ -247,11 +262,11 @@ export default function SecretaryPaymentFlow({
             {selectedEvent && (
                 <div className="space-y-4">
                     <div className="bg-gray-50 p-4 rounded-lg border">
-                        <h4 className="font-medium text-gray-800 mb-3">Selecionar Idoso:</h4>
+                        <h4 className="font-medium text-gray-800 mb-3">Selecionar Pessoa:</h4>
 
-                        <SeniorAutocomplete
-                            onSeniorSelect={handleSeniorSelect}
-                            selectedSenior={selectedSenior || null}
+                        <PersonAutocomplete
+                            onPersonSelect={handleSeniorSelect}
+                            selectedPerson={selectedSenior || null}
                             secretaryId={userData?.id || ''}
                         />
 
@@ -263,12 +278,12 @@ export default function SecretaryPaymentFlow({
                             >
                                 {loadingChurch ? 'Carregando...' :
                                     !userData?.churchId ? 'Sem ID da igreja' :
-                                        '＋ Cadastrar Novo Idoso'}
+                                        '＋ Cadastrar Nova Pessoa'}
                             </button>
                         ) : (
                             <div className="mt-4 space-y-3">
                                 <div className="bg-white p-4 rounded-lg border">
-                                    <h5 className="font-medium text-gray-800 mb-2">Idoso Selecionado:</h5>
+                                    <h5 className="font-medium text-gray-800 mb-2">Pessoa Selecionada:</h5>
                                     <div className="space-y-1 text-sm">
                                         <p><strong>Nome:</strong> {selectedSenior.name}</p>
                                         <p><strong>Telefone:</strong> {selectedSenior.phone}</p>
@@ -290,7 +305,7 @@ export default function SecretaryPaymentFlow({
                                     onClick={() => setSelectedSenior(null)}
                                     className="w-full bg-gray-500 text-white py-2 rounded-lg hover:bg-gray-600"
                                 >
-                                    🔄 Selecionar Outro Idoso
+                                    🔄 Selecionar Outra Pessoa
                                 </button>
                             </div>
                         )}

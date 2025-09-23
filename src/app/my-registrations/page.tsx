@@ -14,7 +14,7 @@ import PaymentModal from '@/components/PaymentModal';
 import { EventRegistration, Event, Church } from '@/types';
 import Link from 'next/link';
 import { db } from '@/lib/firebase/config';
-import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc, serverTimestamp, updateDoc, getDoc } from 'firebase/firestore';
 
 // Interface para dados de pagamento
 interface PaymentData {
@@ -44,6 +44,9 @@ export default function MyRegistrationsPage() {
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const { userData, currentUser } = useAuth();
     const [userChurch, setUserChurch] = useState<{ id: string; name: string; pastor: string; pastorId: string } | null>(null);
+    
+    // Estado para controlar a aba ativa (eventos ativos ou histórico)
+    const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
 
     // Estados do Mercado Pago
     const [processingPayment, setProcessingPayment] = useState<string | null>(null);
@@ -145,6 +148,15 @@ export default function MyRegistrationsPage() {
 
         fetchRegistrationsWithDetails();
     }, [currentUser]);
+
+    // Função para separar eventos ativos e encerrados
+    const activeRegistrations = registrations.filter(registration => 
+        registration.event?.status === 'active' || !registration.event?.status
+    );
+    
+    const historyRegistrations = registrations.filter(registration => 
+        registration.event?.status === 'ended'
+    );
 
     // Função createPixPayment atualizada para lidar com errors
     const createPixPayment = async (paymentRequest: any) => {
@@ -490,100 +502,63 @@ export default function MyRegistrationsPage() {
         }
     };
 
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            </div>
-        );
-    }
 
-    if (!currentUser) {
+
+    // Função para renderizar o card de inscrição
+    function renderRegistrationCard(registration: RegistrationWithDetails, isActive: boolean) {
         return (
-            <div className="min-h-screen bg-gray-50 py-8">
-                <div className="container mx-auto px-4">
-                    <div className="bg-white rounded-lg shadow-md p-6 text-center">
-                        <h1 className="text-3xl font-bold text-gray-800 mb-6">Acesso Restrito</h1>
-                        <p className="text-gray-600 mb-4">Você precisa estar logado para acessar esta página.</p>
-                        <Link href="/login" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
-                            Fazer Login
-                        </Link>
+            <>
+                {/* Cabeçalho do evento */}
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-3 mb-4">
+                    <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-semibold text-gray-800 text-lg">
+                                {registration.event?.title || `Evento #${registration.eventId}`}
+                            </h3>
+                            {!isActive && (
+                                <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs font-medium">
+                                    Encerrado
+                                </span>
+                            )}
+                        </div>
+                        {registration.event && (
+                            <div className="text-sm text-gray-600 space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <span className="font-medium">Data:</span>
+                                    <span>{registration.event.date.toLocaleDateString('pt-BR')}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-medium">Local:</span>
+                                    <span>{registration.event.location}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-medium">Valor:</span>
+                                    <span className="text-green-600 font-semibold">
+                                        R$ {registration.event.price?.toFixed(2) || '0,00'}
+                                    </span>
+                                </div>
+                                {registration.event.description && (
+                                    <div className="flex items-start gap-2">
+                                        <span className="font-medium">Descrição:</span>
+                                        <span className="flex-1">{registration.event.description}</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    <div className="self-start">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${registration.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' :
+                            registration.paymentStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-red-100 text-red-800'
+                            }`}>
+                            {registration.paymentStatus === 'paid' ? 'Pago' :
+                                registration.paymentStatus === 'pending' ? 'Pendente' : 'Reembolsado'}
+                        </span>
                     </div>
                 </div>
-            </div>
-        );
-    }
 
-    return (
-        <div className="min-h-screen bg-gray-50 py-4">
-            <div className="container mx-auto px-4 max-w-4xl">
-                <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-                    <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6 text-center">Minhas Inscrições</h1>
-
-                    {!userChurch && userData?.churchId && (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 text-sm">
-                            <h2 className="font-semibold text-yellow-800 mb-1">Igreja não encontrada</h2>
-                            <p className="text-yellow-700">
-                                A igreja com ID {userData.churchId} não foi encontrada no sistema.
-                            </p>
-                        </div>
-                    )}
-
-                    {registrations.length === 0 ? (
-                        <div className="text-center py-8">
-                            <p className="text-gray-500 mb-4">Você ainda não se inscreveu em nenhum evento.</p>
-                            <Link href="/" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm">
-                                Ver Eventos Disponíveis
-                            </Link>
-                        </div>
-                    ) : (
-                        <div className="space-y-6">
-                            {registrations.map((registration) => (
-                                <div key={registration.id} className="border rounded-lg p-4 hover:shadow-md transition">
-                                    {/* Cabeçalho do evento */}
-                                    <div className="flex flex-col sm:flex-row justify-between items-start gap-3 mb-4">
-                                        <div className="flex-1">
-                                            <h3 className="font-semibold text-gray-800 mb-2 text-lg">
-                                                {registration.event?.title || `Evento #${registration.eventId}`}
-                                            </h3>
-                                            {registration.event && (
-                                                <div className="text-sm text-gray-600 space-y-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-medium">Data:</span>
-                                                        <span>{registration.event.date.toLocaleDateString('pt-BR')}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-medium">Local:</span>
-                                                        <span>{registration.event.location}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-medium">Valor:</span>
-                                                        <span className="text-green-600 font-semibold">
-                                                            R$ {registration.event.price?.toFixed(2) || '0,00'}
-                                                        </span>
-                                                    </div>
-                                                    {registration.event.description && (
-                                                        <div className="flex items-start gap-2">
-                                                            <span className="font-medium">Descrição:</span>
-                                                            <span className="flex-1">{registration.event.description}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="self-start">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${registration.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' :
-                                                registration.paymentStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                                    'bg-red-100 text-red-800'
-                                                }`}>
-                                                {registration.paymentStatus === 'paid' ? 'Pago' :
-                                                    registration.paymentStatus === 'pending' ? 'Pendente' : 'Reembolsado'}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Grid organizado com duas colunas */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                {/* Grid organizado com duas colunas */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                         {/* Coluna 1 - Dados da inscrição */}
                                         <div className="space-y-3">
                                             <h4 className="font-medium text-gray-700 border-b pb-1 text-sm">Dados da Inscrição</h4>
@@ -637,71 +612,212 @@ export default function MyRegistrationsPage() {
                                         </div>
                                     </div>
 
-                                    {/* Área de ações */}
-                                    <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t gap-3">
-                                        <div className="flex flex-wrap gap-2">
-                                            {/* Pagamento - só mostra se estiver aprovado E pendente */}
-                                            {registration.paymentStatus === 'pending' && registration.status === 'approved' && (
-                                                <button
-                                                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition text-sm disabled:opacity-50"
-                                                    onClick={() => handlePayment(registration)}
-                                                    disabled={processingPayment === registration.id}
-                                                >
-                                                    {processingPayment === registration.id
-                                                        ? 'Processando...'
-                                                        : registration.paymentId
-                                                            ? '🔍 Visualizar PIX'
-                                                            : '💰 Realizar Pagamento'
-                                                    }
-                                                </button>
-                                            )}
+                {/* Área de ações - só para eventos ativos */}
+                {isActive && (
+                    <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t gap-3">
+                        <div className="flex flex-wrap gap-2">
+                            {/* Pagamento - só mostra se estiver aprovado E pendente */}
+                            {registration.paymentStatus === 'pending' && registration.status === 'approved' && (
+                                <button
+                                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition text-sm disabled:opacity-50"
+                                    onClick={() => handlePayment(registration)}
+                                    disabled={processingPayment === registration.id}
+                                >
+                                    {processingPayment === registration.id
+                                        ? 'Processando...'
+                                        : registration.paymentId
+                                            ? '🔍 Visualizar PIX'
+                                            : '💰 Realizar Pagamento'
+                                    }
+                                </button>
+                            )}
 
-                                            {/* Mensagens de status */}
-                                            {registration.paymentStatus === 'pending' && registration.status === 'pending' && (
-                                                <span className="text-yellow-600 text-sm font-medium bg-yellow-50 px-3 py-1 rounded">
-                                                    ⏳ Aguardando aprovação
-                                                </span>
-                                            )}
+                            {/* Mensagens de status */}
+                            {registration.paymentStatus === 'pending' && registration.status === 'pending' && (
+                                <span className="text-yellow-600 text-sm font-medium bg-yellow-50 px-3 py-1 rounded">
+                                    ⏳ Aguardando aprovação
+                                </span>
+                            )}
 
-                                            {registration.status === 'rejected' && (
-                                                <span className="text-red-600 text-sm font-medium bg-red-50 px-3 py-1 rounded">
-                                                    ❌ Inscrição rejeitada
-                                                </span>
-                                            )}
+                            {registration.status === 'rejected' && (
+                                <span className="text-red-600 text-sm font-medium bg-red-50 px-3 py-1 rounded">
+                                    ❌ Inscrição rejeitada
+                                </span>
+                            )}
 
-                                            {registration.paymentStatus === 'paid' && (
-                                                <span className="text-green-600 text-sm font-medium">
-                                                    ✅ Pagamento realizado
-                                                </span>
-                                            )}
+                            {registration.paymentStatus === 'paid' && (
+                                <span className="text-green-600 text-sm font-medium">
+                                    ✅ Pagamento realizado
+                                </span>
+                            )}
 
-                                            {/* Botão de excluir - disponível para todos os status exceto paid */}
-                                            {registration.paymentStatus !== 'paid' && (
-                                                <button
-                                                    onClick={() => handleDeleteRegistration(registration)}
-                                                    disabled={deletingId === registration.id}
-                                                    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition text-sm disabled:opacity-50"
-                                                >
-                                                    {deletingId === registration.id
-                                                        ? 'Excluindo...'
-                                                        : canCancelPayment(registration)
-                                                            ? 'Cancelar e Excluir'
-                                                            : 'Excluir Inscrição'
-                                                    }
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        <Link
-                                            href="/"
-                                            className="text-blue-600 hover:text-blue-800 text-sm font-medium whitespace-nowrap"
-                                        >
-                                            Ver mais eventos →
-                                        </Link>
-                                    </div>
-                                </div>
-                            ))}
+                            {/* Botão de excluir - disponível para todos os status exceto paid */}
+                            {registration.paymentStatus !== 'paid' && (
+                                <button
+                                    onClick={() => handleDeleteRegistration(registration)}
+                                    disabled={deletingId === registration.id}
+                                    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition text-sm disabled:opacity-50"
+                                >
+                                    {deletingId === registration.id
+                                        ? 'Excluindo...'
+                                        : canCancelPayment(registration)
+                                            ? 'Cancelar e Excluir'
+                                            : 'Excluir Inscrição'
+                                    }
+                                </button>
+                            )}
                         </div>
+
+                        <Link
+                            href="/"
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium whitespace-nowrap"
+                        >
+                            Ver mais eventos →
+                        </Link>
+                    </div>
+                )}
+
+                {/* Área de informações para eventos encerrados */}
+                {!isActive && (
+                    <div className="pt-4 border-t">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>Evento encerrado - Participação confirmada</span>
+                            </div>
+                            <Link
+                                href="/"
+                                className="text-blue-600 hover:text-blue-800 text-sm font-medium whitespace-nowrap"
+                            >
+                                Ver eventos atuais →
+                            </Link>
+                        </div>
+                    </div>
+                )}
+            </>
+        );
+    }
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+        );
+    }
+
+    if (!currentUser) {
+        return (
+            <div className="min-h-screen bg-gray-50 py-8">
+                <div className="container mx-auto px-4">
+                    <div className="bg-white rounded-lg shadow-md p-6 text-center">
+                        <h1 className="text-3xl font-bold text-gray-800 mb-6">Acesso Restrito</h1>
+                        <p className="text-gray-600 mb-4">Você precisa estar logado para acessar esta página.</p>
+                        <Link href="/login" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+                            Fazer Login
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-gray-50 py-4">
+            <div className="container mx-auto px-4 max-w-4xl">
+                <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
+                    <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6 text-center">Minhas Inscrições</h1>
+
+                    {!userChurch && userData?.churchId && (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 text-sm">
+                            <h2 className="font-semibold text-yellow-800 mb-1">Igreja não encontrada</h2>
+                            <p className="text-yellow-700">
+                                A igreja com ID {userData.churchId} não foi encontrada no sistema.
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Tabs para eventos ativos e histórico */}
+                    <div className="mb-6">
+                        <div className="flex border-b">
+                            <button
+                                onClick={() => setActiveTab('active')}
+                                className={`px-4 py-2 font-medium ${activeTab === 'active'
+                                    ? 'border-b-2 border-blue-600 text-blue-600'
+                                    : 'text-gray-500 hover:text-gray-700'
+                                    }`}
+                            >
+                                Eventos Ativos ({activeRegistrations.length})
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('history')}
+                                className={`px-4 py-2 font-medium ${activeTab === 'history'
+                                    ? 'border-b-2 border-blue-600 text-blue-600'
+                                    : 'text-gray-500 hover:text-gray-700'
+                                    }`}
+                            >
+                                Histórico ({historyRegistrations.length})
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Conteúdo baseado na aba ativa */}
+                    {activeTab === 'active' ? (
+                        // Eventos Ativos
+                        activeRegistrations.length === 0 ? (
+                            <div className="text-center py-8">
+                                <p className="text-gray-500 mb-4">Você não possui inscrições em eventos ativos no momento.</p>
+                                <Link href="/" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm">
+                                    Ver Eventos Disponíveis
+                                </Link>
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
+                                {activeRegistrations.map((registration) => (
+                                    <div key={registration.id} className="border rounded-lg p-4 hover:shadow-md transition">
+                                        {/* Conteúdo do card de evento ativo */}
+                                        {renderRegistrationCard(registration, true)}
+                                    </div>
+                                ))}
+                            </div>
+                        )
+                    ) : (
+                        // Histórico de Eventos
+                        historyRegistrations.length === 0 ? (
+                            <div className="text-center py-8">
+                                <div className="text-gray-400 mb-4">
+                                    <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <p className="text-gray-500 mb-2">Nenhum evento no histórico ainda.</p>
+                                <p className="text-gray-400 text-sm">Quando os eventos que você participou forem encerrados, eles aparecerão aqui.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                                    <div className="flex items-center">
+                                        <svg className="h-5 w-5 text-blue-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <p className="text-blue-800 text-sm font-medium">
+                                            Histórico de Eventos Encerrados
+                                        </p>
+                                    </div>
+                                    <p className="text-blue-700 text-sm mt-1">
+                                        Aqui estão os eventos que você participou e que já foram encerrados.
+                                    </p>
+                                </div>
+                                {historyRegistrations.map((registration) => (
+                                    <div key={registration.id} className="border rounded-lg p-4 bg-gray-50 opacity-90">
+                                        {/* Conteúdo do card de evento encerrado */}
+                                        {renderRegistrationCard(registration, false)}
+                                    </div>
+                                ))}
+                            </div>
+                        )
                     )}
                 </div>
             </div>

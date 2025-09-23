@@ -61,8 +61,8 @@ export default function AddSeniorModal({
             // Formatar CPF (remover caracteres não numéricos)
             const formattedCpf = formData.cpf.replace(/\D/g, '');
 
-            // Criar objeto com os dados do idoso
-            const seniorData = {
+            // Criar objeto com os dados da pessoa
+            const personData = {
                 name: formData.name.trim(),
                 email: formData.email.trim() || null,
                 phone: formData.phone.trim(),
@@ -87,23 +87,23 @@ export default function AddSeniorModal({
                 status: 'active'
             };
 
-            console.log('Salvando idoso no Firestore:', seniorData);
+            console.log('Salvando pessoa no Firestore:', personData);
 
             // Salvar diretamente no Firestore
-            const docRef = await addDoc(collection(db, 'seniors'), seniorData);
+            const docRef = await addDoc(collection(db, 'seniors'), personData);
 
             // Criar objeto com o ID gerado para retornar
-            const newSenior = {
+            const newPerson = {
                 id: docRef.id,
-                ...seniorData,
+                ...personData,
                 createdAt: new Date(), // Usar data local para immediate feedback
                 updatedAt: new Date()
             };
 
-            console.log('Idoso cadastrado com ID:', docRef.id);
+            console.log('Pessoa cadastrada com ID:', docRef.id);
 
-            // Chamar callback com o novo idoso
-            onSeniorAdded(newSenior);
+            // Chamar callback com a nova pessoa
+            onSeniorAdded(newPerson);
 
             // Fechar modal e limpar formulário
             onClose();
@@ -117,18 +117,18 @@ export default function AddSeniorModal({
                 healthInfo: ''
             });
 
-            alert('Idoso cadastrado com sucesso!');
+            alert('Pessoa cadastrada com sucesso!');
 
         } catch (error: any) {
-            console.error('Erro ao cadastrar idoso:', error);
+            console.error('Erro ao cadastrar pessoa:', error);
 
             // Tratar erros específicos do Firestore
             if (error.code === 'permission-denied') {
-                alert('Erro: Você não tem permissão para cadastrar idosos.');
+                alert('Erro: Você não tem permissão para cadastrar pessoas.');
             } else if (error.code === 'unavailable') {
                 alert('Erro: Serviço indisponível. Verifique sua conexão com a internet.');
             } else {
-                alert('Erro ao cadastrar idoso: ' + (error.message || 'Erro desconhecido'));
+                alert('Erro ao cadastrar pessoa: ' + (error.message || 'Erro desconhecido'));
             }
         } finally {
             setLoading(false);
@@ -172,7 +172,7 @@ export default function AddSeniorModal({
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-                <h2 className="text-xl font-bold mb-4">Cadastrar Novo Idoso</h2>
+                <h2 className="text-xl font-bold mb-4">Cadastrar Nova Pessoa</h2>
 
                 {loadingChurch && (
                     <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">

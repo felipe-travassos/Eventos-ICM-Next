@@ -21,6 +21,7 @@ export default function EventManagementPage() {
     const [events, setEvents] = useState<EventWithRegistrations[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedEvent, setSelectedEvent] = useState<EventWithRegistrations | null>(null);
+    const [activeTab, setActiveTab] = useState<'active' | 'ended'>('active');
 
     const [filteredRegistrations, setFilteredRegistrations] = useState<EventRegistration[]>([]);
 
@@ -584,36 +585,71 @@ export default function EventManagementPage() {
                     )}
 
                     {!selectedEvent ? (
-                        // Lista de eventos (mantido igual)
-                        <div className="grid gap-4">
-                            <h2 className="text-xl font-semibold mb-4">Selecione um Evento</h2>
-                            {events.length === 0 ? (
-                                <p className="text-gray-500">Nenhum evento encontrado.</p>
-                            ) : (
-                                events.map(event => (
-                                    <div key={event.id} className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
-                                        <div onClick={() => handleEventSelect(event)}>
-                                            <h3 className="font-semibold text-lg">{event.title}</h3>
-                                            <p className="text-gray-600">{event.date.toLocaleDateString('pt-BR')}</p>
-                                            <p className="text-gray-600">{event.location}</p>
-                                            <div className="flex gap-4 mt-2">
-                                                <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-sm">
-                                                    {event.paidCount} pagos
-                                                </span>
-                                                <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-sm">
-                                                    {event.pendingCount} pendentes
-                                                </span>
-                                                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
-                                                    {event.registrations.length} total
-                                                </span>
-                                                <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-sm">
-                                                    {event.currentParticipants}/{event.maxParticipants} vagas
-                                                </span>
+                        // Lista de eventos com abas
+                        <div>
+                            {/* Tabs para eventos ativos e encerrados */}
+                            <div className="mb-6">
+                                <div className="flex border-b">
+                                    <button
+                                        onClick={() => setActiveTab('active')}
+                                        className={`px-4 py-2 font-medium ${activeTab === 'active'
+                                            ? 'border-b-2 border-blue-600 text-blue-600'
+                                            : 'text-gray-500 hover:text-gray-700'
+                                            }`}
+                                    >
+                                        Eventos Ativos ({events.filter(event => event.status === 'active').length})
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveTab('ended')}
+                                        className={`px-4 py-2 font-medium ${activeTab === 'ended'
+                                            ? 'border-b-2 border-blue-600 text-blue-600'
+                                            : 'text-gray-500 hover:text-gray-700'
+                                            }`}
+                                    >
+                                        Eventos Encerrados ({events.filter(event => event.status === 'ended').length})
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="grid gap-4">
+                                <h2 className="text-xl font-semibold mb-4">
+                                    {activeTab === 'active' ? 'Eventos Ativos' : 'Eventos Encerrados'}
+                                </h2>
+                                {events.filter(event => event.status === activeTab).length === 0 ? (
+                                    <div className="text-center py-8 bg-gray-50 rounded-lg">
+                                        <p className="text-gray-500">
+                                            {activeTab === 'active'
+                                                ? 'Nenhum evento ativo no momento.'
+                                                : 'Nenhum evento encerrado.'
+                                            }
+                                        </p>
+                                    </div>
+                                ) : (
+                                    events.filter(event => event.status === activeTab).map(event => (
+                                        <div key={event.id} className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer">
+                                            <div onClick={() => handleEventSelect(event)}>
+                                                <h3 className="font-semibold text-lg">{event.title}</h3>
+                                                <p className="text-gray-600">{event.date.toLocaleDateString('pt-BR')}</p>
+                                                <p className="text-gray-600">{event.location}</p>
+                                                <div className="flex gap-4 mt-2">
+                                                    <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-sm">
+                                                        {event.paidCount} pagos
+                                                    </span>
+                                                    <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-sm">
+                                                        {event.pendingCount} pendentes
+                                                    </span>
+                                                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
+                                                        {event.registrations.length} total
+                                                    </span>
+                                                    <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-sm">
+                                                        {event.currentParticipants}/{event.maxParticipants} vagas
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))
-                            )}
+                                    ))
+                                )}
+                            </div>
                         </div>
                     ) : (
                         // Detalhes do evento selecionado

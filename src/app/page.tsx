@@ -187,7 +187,8 @@ export default function HomePage() {
           name: userData.name,
           email: userData.email,
           phone: userData.phone || '',
-          church: userData.churchName || userData.churchId || ''
+          church: userData.churchName || userData.churchId || '',
+          cpf: userData.cpf || ''
         }
       );
 

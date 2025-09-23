@@ -116,13 +116,42 @@ const EventCard: React.FC<EventCardProps> = ({
                         </svg>
                         {event.location}
                     </p>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center mb-3">
                         <p className="text-gray-600">Valor: R$ {event.price.toFixed(2)}</p>
                         <span className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
                             {event.currentParticipants || 0} inscritos
                             {event.maxParticipants > 0 ? ` / ${event.maxParticipants}` : ''}
                         </span>
                     </div>
+
+                    {/* Barra de progresso de inscrições */}
+                    {event.maxParticipants > 0 && (
+                        <div className="mt-2">
+                            <div className="flex justify-between text-xs text-gray-500 mb-1">
+                                <span>Progresso de vagas</span>
+                                <span>
+                                    {event.currentParticipants >= event.maxParticipants
+                                        ? '🎟️ ESGOTADO'
+                                        : `${Math.round(((event.currentParticipants || 0) / event.maxParticipants) * 100)}% preenchido`
+                                    }
+                                </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div
+                                    className={`h-2 rounded-full transition-all duration-300 ${
+                                        event.currentParticipants >= event.maxParticipants
+                                            ? 'bg-red-500'
+                                            : ((event.currentParticipants || 0) / event.maxParticipants) > 0.8
+                                                ? 'bg-yellow-500'
+                                                : 'bg-green-500'
+                                    }`}
+                                    style={{
+                                        width: `${Math.min(100, ((event.currentParticipants || 0) / event.maxParticipants) * 100)}%`
+                                    }}
+                                ></div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <p className="text-gray-700 mb-4 line-clamp-3">{event.description}</p>

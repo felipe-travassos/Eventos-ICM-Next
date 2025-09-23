@@ -69,7 +69,7 @@ export interface Event {
     price: number;
     churchId: string;
     churchName: string;
-    status: 'active' | 'canceled' | 'completed';
+    status: 'active' | 'canceled' | 'completed' | 'ended';
     createdAt: Date;
     updatedAt: Date;
     imageURL?: string;

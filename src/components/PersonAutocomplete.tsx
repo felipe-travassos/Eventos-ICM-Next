@@ -1,4 +1,4 @@
-// components/SeniorAutocomplete.tsx
+// components/PersonAutocomplete.tsx
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -6,32 +6,32 @@ import { collection, query, where, getDocs, limit, orderBy } from 'firebase/fire
 import { db } from '@/lib/firebase/config';
 import { Senior } from '@/types';
 
-interface SeniorAutocompleteProps {
-  onSeniorSelect: (senior: Senior) => void;
-  selectedSenior?: Senior | null;
+interface PersonAutocompleteProps {
+  onPersonSelect: (person: Senior) => void;
+  selectedPerson?: Senior | null;
   secretaryId: string;
 }
 
-export default function SeniorAutocomplete({
-  onSeniorSelect,
-  selectedSenior,
+export default function PersonAutocomplete({
+  onPersonSelect,
+  selectedPerson,
   secretaryId
-}: SeniorAutocompleteProps) {
+}: PersonAutocompleteProps) {
   // ✅ Inicializar com string vazia em vez de undefined
-  const [searchTerm, setSearchTerm] = useState(selectedSenior?.name || '');
-  const [seniors, setSeniors] = useState<Senior[]>([]);
+  const [searchTerm, setSearchTerm] = useState(selectedPerson?.name || '');
+  const [people, setPeople] = useState<Senior[]>([]);
   const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Atualiza o searchTerm quando selectedSenior muda
+  // Atualiza o searchTerm quando selectedPerson muda
   useEffect(() => {
-    if (selectedSenior) {
-      setSearchTerm(selectedSenior.name);
+    if (selectedPerson) {
+      setSearchTerm(selectedPerson.name);
     } else {
       setSearchTerm(''); // ✅ Garantir que nunca fique undefined
     }
-  }, [selectedSenior]);
+  }, [selectedPerson]);
 
   // Fecha o dropdown ao clicar fora
   useEffect(() => {
@@ -47,9 +47,9 @@ export default function SeniorAutocomplete({
 
   // Função de busca direta no Firestore
   // Função de busca direta no Firestore
-  const searchSeniors = useCallback(async (term: string) => {
+  const searchPeople = useCallback(async (term: string) => {
     if (term.length < 3) {
-      setSeniors([]);
+      setPeople([]);
       setShowDropdown(false);
       return;
     }
@@ -71,12 +71,12 @@ export default function SeniorAutocomplete({
       );
 
       const querySnapshot = await getDocs(q);
-      const seniorsData: Senior[] = [];
+      const peopleData: Senior[] = [];
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
         // Mapeando os dados para a interface Senior
-        seniorsData.push({
+        peopleData.push({
           id: doc.id,
           name: data.name || '',
           phone: data.phone || '',
@@ -95,7 +95,7 @@ export default function SeniorAutocomplete({
       });
 
       // ✅ Busca alternativa: também buscar em minúsculas
-      if (seniorsData.length === 0) {
+      if (peopleData.length === 0) {
         const alternativeQuery = query(
           seniorsRef,
           where('name', '>=', term.toLowerCase()),
@@ -107,7 +107,7 @@ export default function SeniorAutocomplete({
         const alternativeSnapshot = await getDocs(alternativeQuery);
         alternativeSnapshot.forEach((doc) => {
           const data = doc.data();
-          seniorsData.push({
+          peopleData.push({
             id: doc.id,
             name: data.name || '',
             phone: data.phone || '',
@@ -127,7 +127,7 @@ export default function SeniorAutocomplete({
       }
 
       // ✅ Busca adicional: também buscar em maiúsculas
-      if (seniorsData.length === 0) {
+      if (peopleData.length === 0) {
         const uppercaseQuery = query(
           seniorsRef,
           where('name', '>=', term.toUpperCase()),
@@ -139,7 +139,7 @@ export default function SeniorAutocomplete({
         const uppercaseSnapshot = await getDocs(uppercaseQuery);
         uppercaseSnapshot.forEach((doc) => {
           const data = doc.data();
-          seniorsData.push({
+          peopleData.push({
             id: doc.id,
             name: data.name || '',
             phone: data.phone || '',
@@ -159,15 +159,15 @@ export default function SeniorAutocomplete({
       }
 
       // ✅ Remover duplicatas (caso haja sobreposição nas buscas)
-      const uniqueSeniors = seniorsData.filter((senior, index, self) =>
-        index === self.findIndex(s => s.id === senior.id)
+      const uniquePeople = peopleData.filter((person, index, self) =>
+        index === self.findIndex(p => p.id === person.id)
       );
 
-      setSeniors(uniqueSeniors);
-      setShowDropdown(uniqueSeniors.length > 0);
+      setPeople(uniquePeople);
+      setShowDropdown(uniquePeople.length > 0);
     } catch (error) {
-      console.error('Erro ao buscar idosos no Firestore:', error);
-      setSeniors([]);
+      console.error('Erro ao buscar pessoas no Firestore:', error);
+      setPeople([]);
       setShowDropdown(false);
     } finally {
       setLoading(false);
@@ -177,24 +177,24 @@ export default function SeniorAutocomplete({
   useEffect(() => {
     // Debounce para evitar muitas requisições
     const timeoutId = setTimeout(() => {
-      searchSeniors(searchTerm);
+      searchPeople(searchTerm);
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, searchSeniors]);
+  }, [searchTerm, searchPeople]);
 
-  const handleSelectSenior = (senior: Senior) => {
-    // ✅ Garantir que o senior tem um ID válido
-    if (!senior.id) {
-      console.error('Idoso selecionado não possui ID válido:', senior);
-      alert('Erro: Idoso selecionado é inválido.');
+  const handleSelectPerson = (person: Senior) => {
+    // ✅ Garantir que a pessoa tem um ID válido
+    if (!person.id) {
+      console.error('Pessoa selecionada não possui ID válido:', person);
+      alert('Erro: Pessoa selecionada é inválida.');
       return;
     }
 
-    onSeniorSelect(senior);
-    setSearchTerm(senior.name);
+    onPersonSelect(person);
+    setSearchTerm(person.name);
     setShowDropdown(false);
-    setSeniors([]);
+    setPeople([]);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -203,14 +203,14 @@ export default function SeniorAutocomplete({
 
     // Se limpar o input, limpa a seleção também
     if (value === '') {
-      onSeniorSelect({} as Senior);
-      setSeniors([]);
+      onPersonSelect({} as Senior);
+      setPeople([]);
       setShowDropdown(false);
     }
   };
 
   const handleInputFocus = () => {
-    if (searchTerm.length >= 3 && seniors.length > 0) {
+    if (searchTerm.length >= 3 && people.length > 0) {
       setShowDropdown(true);
     }
   };
@@ -218,7 +218,7 @@ export default function SeniorAutocomplete({
   return (
     <div className="relative" ref={dropdownRef}>
       <label className="block text-sm font-medium text-gray-700 mb-2">
-        Buscar Idoso Cadastrado
+        Buscar Pessoa Cadastrada
       </label>
 
       <input
@@ -234,23 +234,23 @@ export default function SeniorAutocomplete({
         <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
           {loading ? (
             <div className="p-3 text-center text-gray-500">Buscando...</div>
-          ) : seniors.length > 0 ? (
-            seniors.map((senior) => (
+          ) : people.length > 0 ? (
+            people.map((person) => (
               <div
-                key={senior.id}
+                key={person.id}
                 className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100"
-                onClick={() => handleSelectSenior(senior)}
+                onClick={() => handleSelectPerson(person)}
               >
-                <div className="font-medium">{senior.name}</div>
+                <div className="font-medium">{person.name}</div>
                 <div className="text-sm text-gray-600">
-                  {senior.phone} • {senior.church}
-                  {senior.email && ` • ${senior.email}`}
+                  {person.phone} • {person.church}
+                  {person.email && ` • ${person.email}`}
                 </div>
               </div>
             ))
           ) : searchTerm.length >= 3 ? (
             <div className="p-3 text-gray-500">
-              Nenhum idoso encontrado. Verifique se o nome está correto.
+              Nenhuma pessoa encontrada. Verifique se o nome está correto.
             </div>
           ) : null}
         </div>
