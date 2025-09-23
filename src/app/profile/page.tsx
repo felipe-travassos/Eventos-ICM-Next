@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { updateProfileData, getChurches } from '@/lib/firebase/users';
 import { Church } from '@/types';
 import { linkPastorToChurch } from '@/lib/firebase/churches';
+import { toast } from 'sonner';
 
 export default function ProfilePage() {
     // Contexto de autenticação para obter dados do usuário
@@ -151,11 +152,11 @@ export default function ProfilePage() {
             // Atualiza a exibição do CPF com a máscara de segurança
             setDisplayCpf(dataToSave.cpf ? displayMaskedCPF(dataToSave.cpf) : '');
 
-            alert('Perfil atualizado com sucesso!'); // Feedback de sucesso
+            toast.success('Perfil atualizado com sucesso!'); // Feedback de sucesso
 
         } catch (error: any) {
             console.error('Erro ao atualizar perfil:', error);
-            alert('Erro ao atualizar perfil: ' + error.message); // Feedback de erro
+            toast.error('Erro ao atualizar perfil: ' + error.message); // Feedback de erro
         } finally {
             setLoading(false); // Desativa estado de carregamento
         }

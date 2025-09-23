@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { Church } from '@/types';
+import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -104,7 +105,7 @@ export default function AdminChurches() {
                         ? { ...church, ...churchData }
                         : church
                 ));
-                alert('Igreja atualizada com sucesso!');
+                toast.success('Igreja atualizada com sucesso!');
             } else {
                 const newChurch = {
                     ...churchData,
@@ -112,14 +113,14 @@ export default function AdminChurches() {
                 };
                 const docRef = await addDoc(collection(db, 'churches'), newChurch);
                 setChurches(prev => [...prev, { id: docRef.id, ...newChurch }]);
-                alert('Igreja cadastrada com sucesso!');
+                toast.success('Igreja cadastrada com sucesso!');
             }
 
             resetForm();
 
         } catch (error) {
             console.error('Erro ao salvar igreja:', error);
-            alert('Erro ao salvar igreja. Tente novamente.');
+            toast.error('Erro ao salvar igreja. Tente novamente.');
         } finally {
             setLoading(false);
         }
@@ -138,13 +139,13 @@ export default function AdminChurches() {
         if (!confirm('Tem certeza que deseja excluir esta igreja?')) return;
 
         try {
-            await deleteDoc(doc(db, 'churches', churchId));
-            setChurches(churches.filter(church => church.id !== churchId));
-            alert('Igreja excluída com sucesso!');
-        } catch (error) {
-            console.error('Erro ao excluir igreja:', error);
-            alert('Erro ao excluir igreja. Tente novamente.');
-        }
+        await deleteDoc(doc(db, 'churches', churchId));
+        setChurches(churches.filter(church => church.id !== churchId));
+        toast.success('Igreja excluída com sucesso!');
+      } catch (error) {
+        console.error('Erro ao excluir igreja:', error);
+        toast.error('Erro ao excluir igreja. Tente novamente.');
+      }
     };
 
     const resetForm = () => {

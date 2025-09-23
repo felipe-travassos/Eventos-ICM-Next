@@ -8,6 +8,7 @@ import PaymentModal from './PaymentModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
+import { toast } from 'sonner';
 
 interface SecretaryRegistrationFlowProps {
     event: any;
@@ -53,13 +54,13 @@ export default function SecretaryRegistrationFlow({
     const handleCopyPix = () => {
         if (paymentData?.qrCode) {
             navigator.clipboard.writeText(paymentData.qrCode);
-            alert('Código PIX copiado!');
+            toast.success('Código PIX copiado!');
         }
     };
 
     const handleCheckStatus = async () => {
         // Implementar lógica para verificar status do pagamento
-        alert('Funcionalidade de verificação em desenvolvimento');
+        toast.info('Funcionalidade de verificação em desenvolvimento');
     };
 
     const handleRegistration = async () => {
@@ -136,7 +137,8 @@ export default function SecretaryRegistrationFlow({
             });
 
         } catch (error: any) {
-            alert('Erro: ' + error.message);
+            console.error('Erro ao salvar inscrição:', error);
+            toast.error('Erro: ' + error.message);
         } finally {
             setLoading(false);
         }

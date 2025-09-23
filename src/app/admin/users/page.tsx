@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { getUsers, updateUserRole } from '@/lib/firebase/users';
 import { UserRole } from '@/types';
+import { toast } from 'sonner';
 
 export default function AdminUsersPage() {
     const { userData } = useAuth();
@@ -31,18 +32,18 @@ export default function AdminUsersPage() {
             const usersData = await getUsers();
             setUsers(usersData);
         } catch (error) {
-            console.error('Erro ao carregar usuários:', error);
-            alert('Erro ao carregar usuários');
-        } finally {
-            setLoading(false);
-        }
+        console.error('Erro ao carregar usuários:', error);
+        toast.error('Erro ao carregar usuários');
+      } finally {
+        setLoading(false);
+      }
     };
 
     const handleRoleChange = async (userId: string, newRole: UserRole) => {
         try {
             setUpdating(userId);
             await updateUserRole(userId, newRole);
-            alert('Função atualizada com sucesso!');
+            toast.success('Função atualizada com sucesso!');
 
             // Atualizar a lista local
             setUsers(users.map(user =>
@@ -50,7 +51,7 @@ export default function AdminUsersPage() {
             ));
         } catch (error: any) {
             console.error('Erro ao atualizar função:', error);
-            alert('Erro ao atualizar função: ' + error.message);
+            toast.error('Erro ao atualizar função: ' + error.message);
         } finally {
             setUpdating(null);
         }

@@ -25,9 +25,9 @@ export default function RootLayout({
           <Navbar />
           <main className="pt-16 min-h-screen bg-gray-50"> {/* Adicionado bg-gray-50 */}
             {children}
-            <SonnerProvider />
           </main>
           <Footer />
+          <SonnerProvider />
         </AuthProvider>
       </body>
     </html>

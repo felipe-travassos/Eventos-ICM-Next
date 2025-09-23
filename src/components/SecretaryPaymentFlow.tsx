@@ -8,6 +8,7 @@ import { Event } from '@/types';
 import EventSelector from './events/EventSelector';
 import { db } from '@/lib/firebase/config';
 import { addDoc, collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
+import { toast } from 'sonner';
 
 interface SecretaryPaymentFlowProps {
     events: Event[];
@@ -92,13 +93,13 @@ export default function SecretaryPaymentFlow({
 
     const handleOpenAddModal = () => {
         if (loadingChurch) {
-            alert('Aguarde, carregando informações da igreja...');
+            toast.info('Aguarde, carregando informações da igreja...');
             return;
         }
 
         // Permite abrir o modal mesmo se houver erro, desde que tenha churchId
         if (!userData?.churchId) {
-            alert('ID da igreja não disponível. Não é possível cadastrar idoso.');
+            toast.error('ID da igreja não disponível. Não é possível cadastrar idoso.');
             return;
         }
 
@@ -121,7 +122,7 @@ export default function SecretaryPaymentFlow({
 
     const handleRegistration = async () => {
         if (!selectedSenior || !selectedSenior.id || !selectedEvent || !selectedEvent.id || !userData) {
-            alert('Por favor, selecione um evento e um idoso válidos.');
+            toast.warning('Por favor, selecione um evento e um idoso válidos.');
             setLoading(false);
             return;
         }
@@ -150,7 +151,7 @@ export default function SecretaryPaymentFlow({
                 };
 
                 const statusMessage = statusMessages[existingRegistration.status] || 'ℹ️ Esta inscrição já existe.';
-                alert(statusMessage);
+                toast.info(statusMessage);
                 setLoading(false);
                 return;
             }
@@ -165,7 +166,7 @@ export default function SecretaryPaymentFlow({
             const cpfQuerySnapshot = await getDocs(cpfQuery);
 
             if (!cpfQuerySnapshot.empty) {
-                alert('❌ Este CPF já possui uma inscrição neste evento.');
+                toast.error('❌ Este CPF já possui uma inscrição neste evento.');
                 setLoading(false);
                 return;
             }
@@ -206,7 +207,7 @@ export default function SecretaryPaymentFlow({
 
             console.log('✅ Inscrição salva com ID:', docRef.id);
 
-            alert('✅ Inscrição enviada para aprovação! Aguarde a liberação do secretário responsável.');
+            toast.success('✅ Inscrição enviada para aprovação! Aguarde a liberação do secretário responsável.');
 
             // Limpar seleções após sucesso
             setSelectedSenior(null);
@@ -214,7 +215,7 @@ export default function SecretaryPaymentFlow({
 
         } catch (error: any) {
             console.error('❌ Erro ao salvar inscrição:', error);
-            alert('Erro: ' + (error.message || 'Erro ao salvar inscrição.'));
+            toast.error('Erro: ' + (error.message || 'Erro ao salvar inscrição.'));
         } finally {
             setLoading(false);
         }

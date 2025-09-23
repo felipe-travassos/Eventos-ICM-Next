@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
+import { toast } from 'sonner';
 
 interface ChurchInfo {
     churchId: string;
@@ -45,13 +46,13 @@ export default function AddSeniorModal({
 
         // Verificar se temos todas as informações da igreja
         if (!churchInfo || !churchInfo.churchId || !churchInfo.churchName || !churchInfo.pastorName) {
-            alert('Erro: Informações da igreja não disponíveis. Tente novamente em alguns instantes.');
+            toast.error('Erro: Informações da igreja não disponíveis. Tente novamente em alguns instantes.');
             return;
         }
 
         // Validação básica dos campos obrigatórios
         if (!formData.name.trim() || !formData.phone.trim() || !formData.cpf.trim()) {
-            alert('Por favor, preencha todos os campos obrigatórios (Nome, Telefone e CPF).');
+            toast.warning('Por favor, preencha todos os campos obrigatórios (Nome, Telefone e CPF).');
             return;
         }
 
@@ -117,18 +118,16 @@ export default function AddSeniorModal({
                 healthInfo: ''
             });
 
-            alert('Pessoa cadastrada com sucesso!');
-
+            toast.success('Pessoa cadastrada com sucesso!');
         } catch (error: any) {
             console.error('Erro ao cadastrar pessoa:', error);
-
-            // Tratar erros específicos do Firestore
+            
             if (error.code === 'permission-denied') {
-                alert('Erro: Você não tem permissão para cadastrar pessoas.');
+                toast.error('Erro: Você não tem permissão para cadastrar pessoas.');
             } else if (error.code === 'unavailable') {
-                alert('Erro: Serviço indisponível. Verifique sua conexão com a internet.');
+                toast.error('Erro: Serviço indisponível. Verifique sua conexão com a internet.');
             } else {
-                alert('Erro ao cadastrar pessoa: ' + (error.message || 'Erro desconhecido'));
+                toast.error('Erro ao cadastrar pessoa: ' + (error.message || 'Erro desconhecido'));
             }
         } finally {
             setLoading(false);
