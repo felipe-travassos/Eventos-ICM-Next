@@ -189,7 +189,8 @@ export default function HomePage() {
           phone: userData.phone || '',
           church: userData.churchName || userData.churchId || '',
           cpf: userData.cpf || ''
-        }
+        },
+        userData // Passando dados completos do usuário para validação
       );
 
       if (result.success) {

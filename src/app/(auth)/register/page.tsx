@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSonner } from '@/lib/sonner/useSonner';
+import { getChurches } from '@/lib/firebase/users';
+import { Church } from '@/types';
+import { isValidCpf, isValidPhone, isValidEmail } from '@/lib/validation/userValidation';
 
 /**
  * Componente de registro de novos usuários
@@ -16,7 +19,12 @@ export default function Register() {
     const [email, setEmail] = useState('');            // Email para registro e login
     const [password, setPassword] = useState('');      // Senha escolhida pelo usuário
     const [confirmPassword, setConfirmPassword] = useState(''); // Confirmação da senha
+    const [cpf, setCpf] = useState('');                // CPF do usuário
+    const [phone, setPhone] = useState('');            // Telefone do usuário
+    const [churchId, setChurchId] = useState('');      // ID da igreja selecionada
+    const [churches, setChurches] = useState<Church[]>([]); // Lista de igrejas disponíveis
     const [loading, setLoading] = useState(false);     // Controla estado de carregamento durante o registro
+    const [loadingChurches, setLoadingChurches] = useState(true); // Controla carregamento das igrejas
     const { error } = useSonner();
 
     // Hooks externos para autenticação e navegação
@@ -35,6 +43,65 @@ export default function Register() {
             router.push('/');
         }
     }, [currentUser, router]); // Executa quando currentUser ou router mudam
+
+    /**
+     * Efeito para carregar a lista de igrejas disponíveis
+     */
+    useEffect(() => {
+        const loadChurches = async () => {
+            try {
+                const churchesList = await getChurches();
+                setChurches(churchesList);
+            } catch (error) {
+                console.error('Erro ao carregar igrejas:', error);
+            } finally {
+                setLoadingChurches(false);
+            }
+        };
+
+        loadChurches();
+    }, []);
+
+    /**
+     * Função para formatar CPF durante a digitação
+     */
+    const formatCpf = (value: string) => {
+        const cleanValue = value.replace(/\D/g, '');
+        if (cleanValue.length <= 11) {
+            return cleanValue
+                .replace(/(\d{3})(\d)/, '$1.$2')
+                .replace(/(\d{3})(\d)/, '$1.$2')
+                .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+        }
+        return cpf;
+    };
+
+    /**
+     * Função para formatar telefone durante a digitação
+     */
+    const formatPhone = (value: string) => {
+        const cleanValue = value.replace(/\D/g, '');
+        if (cleanValue.length <= 11) {
+            return cleanValue
+                .replace(/(\d{2})(\d)/, '($1) $2')
+                .replace(/(\d{5})(\d)/, '$1-$2');
+        }
+        return phone;
+    };
+
+    /**
+     * Função para validar CPF
+     */
+    const isValidCpfLocal = (cpf: string): boolean => {
+        return isValidCpf(cpf);
+    };
+
+    /**
+     * Função para validar telefone
+     */
+    const isValidPhoneLocal = (phone: string): boolean => {
+        return isValidPhone(phone);
+    };
 
     /**
      * Renderização condicional: exibe loading durante redirecionamento
@@ -59,9 +126,46 @@ export default function Register() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault(); // Previne comportamento padrão do formulário
 
+        // Validações dos campos obrigatórios
+        if (!name.trim()) {
+            return error('Nome é obrigatório');
+        }
+
+        if (!email.trim()) {
+            return error('Email é obrigatório');
+        }
+
+        if (!cpf.trim()) {
+            return error('CPF é obrigatório');
+        }
+
+        if (!isValidCpfLocal(cpf)) {
+            return error('CPF inválido');
+        }
+
+        if (!phone.trim()) {
+            return error('Telefone é obrigatório');
+        }
+
+        if (!isValidPhoneLocal(phone)) {
+            return error('Telefone deve ter entre 10 e 11 dígitos');
+        }
+
+        if (!isValidEmail(email)) {
+            return error('Email inválido');
+        }
+
+        if (!churchId) {
+            return error('Selecione uma igreja');
+        }
+
         // Validação inicial: verifica se as senhas coincidem
         if (password !== confirmPassword) {
             return error('As senhas não coincidem');
+        }
+
+        if (password.length < 6) {
+            return error('A senha deve ter pelo menos 6 caracteres');
         }
 
         try {
@@ -69,7 +173,7 @@ export default function Register() {
             setLoading(true);
 
             // Chama função de registro do contexto de autenticação
-            await register(email, password, name);
+            await register(email, password, name, cpf, phone, churchId);
 
             // Redireciona para página inicial após registro bem-sucedido
             router.push('/');
@@ -117,6 +221,58 @@ export default function Register() {
                         required
                         placeholder="seu@email.com"
                     />
+                </div>
+
+                {/* Campo: CPF */}
+                <div>
+                    <label className="block text-gray-700 mb-2 font-medium">CPF</label>
+                    <input
+                        type="text"
+                        value={cpf}
+                        onChange={(e) => setCpf(formatCpf(e.target.value))}
+                        className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                        placeholder="000.000.000-00"
+                        maxLength={14}
+                    />
+                </div>
+
+                {/* Campo: Telefone */}
+                <div>
+                    <label className="block text-gray-700 mb-2 font-medium">Telefone</label>
+                    <input
+                        type="text"
+                        value={phone}
+                        onChange={(e) => setPhone(formatPhone(e.target.value))}
+                        className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                        placeholder="(00) 00000-0000"
+                        maxLength={15}
+                    />
+                </div>
+
+                {/* Campo: Igreja */}
+                <div>
+                    <label className="block text-gray-700 mb-2 font-medium">Igreja</label>
+                    {loadingChurches ? (
+                        <div className="w-full p-3 border border-gray-300 rounded bg-gray-50">
+                            Carregando igrejas...
+                        </div>
+                    ) : (
+                        <select
+                            value={churchId}
+                            onChange={(e) => setChurchId(e.target.value)}
+                            className="w-full p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            required
+                        >
+                            <option value="">Selecione uma igreja</option>
+                            {churches.map((church) => (
+                                <option key={church.id} value={church.id}>
+                                    {church.name}
+                                </option>
+                            ))}
+                        </select>
+                    )}
                 </div>
 
                 {/* Campo: Senha */}

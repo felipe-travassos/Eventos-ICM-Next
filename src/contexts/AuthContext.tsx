@@ -22,7 +22,7 @@ interface AuthContextType {
     userData: User | null;
     loading: boolean;
     login: (email: string, password: string) => Promise<void>;
-    register: (email: string, password: string, name: string) => Promise<void>;
+    register: (email: string, password: string, name: string, cpf: string, phone: string, churchId: string) => Promise<void>;
     logout: () => Promise<void>;
     resetPassword: (email: string) => Promise<void>;
     updateUserData: (newData: Partial<User>) => void;
@@ -47,18 +47,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await signInWithEmailAndPassword(auth, email, password);
     };
 
-    const register = async (email: string, password: string, name: string) => {
+    const register = async (email: string, password: string, name: string, cpf: string, phone: string, churchId: string) => {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
         const userDoc: User = {
             id: user.uid,
             uid: user.uid,
-            churchId: '',
-            cpf: '',
+            churchId: churchId,
+            cpf: cpf.replace(/\D/g, ''), // Remove formatação do CPF
             name,
             email,
-            phone: '',
+            phone: phone.replace(/\D/g, ''), // Remove formatação do telefone
             role: 'membro' as UserRole,
             createdAt: new Date(),
             updatedAt: new Date()

@@ -13,7 +13,8 @@ import {
 } from 'firebase/firestore';
 
 import { db } from '@/lib/firebase/config';
-import { EventRegistration, Event } from '@/types';
+import { EventRegistration, Event, User } from '@/types';
+import { canUserRegisterForEvents, getRegistrationErrorMessage } from '@/lib/firebase/userRegistrationValidation';
 
 
 /**
@@ -265,14 +266,25 @@ export const getAllEvents = async (): Promise<Event[]> => {
  * @param eventId - ID do evento
  * @param userId - ID do usuário
  * @param userData - Dados do usuário (nome, email, telefone, igreja)
+ * @param fullUserData - Dados completos do usuário para validação
  * @returns Promise<{success: boolean, message: string}> - Resultado da operação
  */
 export const registerForEvent = async (
     eventId: string,
     userId: string,
-    userData: { name: string; email: string; phone: string; church: string; cpf?: string }
+    userData: { name: string; email: string; phone: string; church: string; cpf?: string },
+    fullUserData?: User
 ): Promise<{ success: boolean; message: string }> => {
     try {
+        // Validar se o usuário tem dados completos para se inscrever
+        if (fullUserData) {
+            const eligibility = canUserRegisterForEvents(fullUserData);
+            if (!eligibility.canRegister) {
+                const errorMessage = getRegistrationErrorMessage(eligibility.errors, eligibility.missingFields);
+                return { success: false, message: errorMessage };
+            }
+        }
+
         // Validações de dados obrigatórios
         if (!userData.phone || userData.phone.length < 10) {
             return { success: false, message: 'Número de celular inválido' };
