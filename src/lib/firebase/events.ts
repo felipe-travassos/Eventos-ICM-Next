@@ -132,6 +132,8 @@ export const deleteEventRegistration = async (registrationId: string, eventId: s
     }
 }
 
+import { logger } from '@/lib/utils/logger';
+
 /**
  * Busca todos os eventos e sincroniza automaticamente os contadores de participantes
  * Verifica inconsistências entre o contador do evento e as inscrições reais
@@ -139,22 +141,12 @@ export const deleteEventRegistration = async (registrationId: string, eventId: s
  */
 export const getEventsWithSync = async (): Promise<Event[]> => {
     try {
-        console.log('🔄 Iniciando sincronização de eventos...');
+        logger.syncingEvents();
 
         // Buscar todos os eventos do Firestore
         const querySnapshot = await getDocs(collection(db, 'events'));
         const events = querySnapshot.docs.map(doc => {
             const data = doc.data();
-
-            // ✅ DEBUG: Log dos dados brutos
-            console.log('📄 Evento RAW:', {
-                id: doc.id,
-                title: data.title,
-                maxParticipantsRaw: data.maxParticipants,
-                currentParticipantsRaw: data.currentParticipants,
-                tipoMax: typeof data.maxParticipants,
-                tipoCurrent: typeof data.currentParticipants
-            });
 
             return {
                 id: doc.id,
@@ -173,11 +165,9 @@ export const getEventsWithSync = async (): Promise<Event[]> => {
             } as Event;
         });
 
-        // ✅ CORREÇÃO: Verificar TODOS os eventos, não só os com currentParticipants > 0
+        // Verificar apenas eventos que podem ter inconsistências
         const syncPromises = events.map(async (event) => {
             try {
-                console.log(`🔍 Verificando evento ${event.id}: ${event.title}`);
-
                 // Buscar inscrições reais para ESTE evento
                 const registrationsQuery = query(
                     collection(db, 'registrations'),
@@ -188,15 +178,9 @@ export const getEventsWithSync = async (): Promise<Event[]> => {
                 const querySnapshot = await getDocs(registrationsQuery);
                 const actualParticipants = querySnapshot.size;
 
-                console.log(`📊 Evento ${event.id}:`, {
-                    contadorAtual: event.currentParticipants,
-                    inscricoesReais: actualParticipants,
-                    precisaCorrecao: event.currentParticipants !== actualParticipants
-                });
-
-                // ✅ CORREÇÃO: Sempre corrigir se houver diferença
+                // Corrigir apenas se houver diferença
                 if (event.currentParticipants !== actualParticipants) {
-                    console.log(`🔄 Corrigindo evento ${event.id}: de ${event.currentParticipants} para ${actualParticipants} participantes`);
+                    logger.eventCorrected(event.title, event.currentParticipants, actualParticipants);
 
                     await updateDoc(doc(db, 'events', event.id), {
                         currentParticipants: actualParticipants,
@@ -205,24 +189,20 @@ export const getEventsWithSync = async (): Promise<Event[]> => {
 
                     // Atualizar também no array local
                     event.currentParticipants = actualParticipants;
-
-                    console.log(`✅ Evento ${event.id} sincronizado: ${actualParticipants} participantes reais`);
-                } else {
-                    console.log(`✓ Evento ${event.id} já está sincronizado: ${actualParticipants} participantes`);
                 }
             } catch (error) {
-                console.error(`❌ Erro ao sincronizar evento ${event.id}:`, error);
+                logger.error(`Erro ao sincronizar evento ${event.id}:`, error);
             }
         });
 
         // Executar todas as sincronizações em paralelo
-        console.log('⏳ Executando sincronizações...');
         await Promise.all(syncPromises);
-        console.log('✅ Todas as sincronizações concluídas');
+        
+        logger.syncCompleted();
 
         return events;
     } catch (error) {
-        console.error('❌ Erro ao buscar e sincronizar eventos:', error);
+        logger.error('Erro ao buscar e sincronizar eventos:', error);
         return [];
     }
 };

@@ -47,6 +47,7 @@ const Navbar: React.FC = () => {
                                 width={36}
                                 height={36}
                                 className="object-contain group-hover:scale-110 transition-transform duration-300"
+                                style={{ width: 'auto', height: 'auto' }}
                             />
                         </div>
                         <div className="hidden sm:block">

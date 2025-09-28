@@ -15,11 +15,11 @@ import {
 } from '@/lib/firebase/events';
 
 import EventCard from '@/components/events/EventCard';
+import { logger } from '@/lib/utils/logger';
 import { useSonner } from '@/lib/sonner/useSonner';
-
 import SecretaryPaymentFlow from '@/components/SecretaryPaymentFlow';
 
-// Componentes de ícones (movidos para cima)
+// Componentes de ícones
 const ChevronLeftIcon = () => (
   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -64,9 +64,9 @@ export default function HomePage() {
       if (currentUser) {
         setLoadingRegistrations(true);
         try {
-          console.log('🔄 Carregando inscrições para usuário:', currentUser.uid);
+          logger.loadingUserRegistrations(currentUser.uid);
           const registrations = await getUserRegistrations(currentUser.uid);
-          console.log('📋 Inscrições carregadas:', registrations);
+          logger.userRegistrationsLoaded(registrations);
           setUserRegistrations(registrations);
         } catch (error) {
           console.error('❌ Erro ao carregar inscrições:', error);
@@ -75,7 +75,7 @@ export default function HomePage() {
           setLoadingRegistrations(false);
         }
       } else {
-        console.log('👤 Usuário não logado, limpando inscrições');
+        logger.userNotLoggedIn();
         setUserRegistrations([]);
         setLoadingRegistrations(false);
       }
@@ -88,37 +88,54 @@ export default function HomePage() {
    * Carrega todos os eventos ativos do sistema
    */
   useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
+    let isLoading = false;
+
     const fetchEvents = async () => {
+      // Evitar múltiplas chamadas simultâneas
+      if (isLoading) return;
+      
       try {
+        isLoading = true;
         setLoading(true);
-        console.log('🔄 Carregando eventos...');
+        
+        logger.loadingEvents();
         const eventsData = await getEventsWithSync();
-        console.log('🎯 Eventos carregados:', eventsData.length);
+        logger.eventsLoaded(eventsData.length);
+        
         const activeEvents = eventsData.filter((event: Event) => event.status === 'active');
         setEvents(activeEvents);
-        
-        // Configurar atualização automática a cada 60 segundos
-        const intervalId = setInterval(async () => {
-          try {
-            console.log('🔄 Atualizando eventos automaticamente...');
-            const refreshedEvents = await getEventsWithSync();
-            const refreshedActiveEvents = refreshedEvents.filter((event: Event) => event.status === 'active');
-            setEvents(refreshedActiveEvents);
-          } catch (err) {
-            console.error('❌ Erro na atualização automática:', err);
-          }
-        }, 60000);
-        
-        return () => clearInterval(intervalId);
       } catch (error) {
-        console.error('❌ Erro ao buscar eventos:', error);
+        logger.error('Erro ao carregar eventos:', error);
         setEvents([]);
       } finally {
         setLoading(false);
+        isLoading = false;
       }
     };
 
+    // Carregamento inicial
     fetchEvents();
+
+    // Configurar atualização automática a cada 5 minutos (reduzido de 60 segundos)
+    intervalId = setInterval(async () => {
+      try {
+        logger.autoUpdatingEvents();
+        
+        const refreshedEvents = await getEventsWithSync();
+        const refreshedActiveEvents = refreshedEvents.filter((event: Event) => event.status === 'active');
+        setEvents(refreshedActiveEvents);
+      } catch (err) {
+        console.error('❌ Erro na atualização automática:', err);
+      }
+    }, 300000); // 5 minutos em vez de 1 minuto
+
+    // Cleanup
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
   }, []);
 
 
@@ -199,7 +216,7 @@ export default function HomePage() {
         //Recarrega as inscrições após sucesso
         const updatedRegistrations = await getUserRegistrations(currentUser.uid);
         setUserRegistrations(updatedRegistrations);
-        console.log('🔄 Inscrições atualizadas após registro:', updatedRegistrations);
+        logger.registrationsUpdatedAfterEvent(updatedRegistrations);
 
         // Atualiza a lista de eventos para refletir o novo participante
         const updatedEvents = await getEventsWithSync();

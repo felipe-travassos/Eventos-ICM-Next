@@ -12,6 +12,15 @@ interface ChartsProps {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
 export default function Charts({ event }: ChartsProps) {
+    // Verificar se event e registrations existem
+    if (!event || !event.registrations) {
+        return (
+            <div className="text-center py-8 text-gray-500">
+                <p>Nenhum dado disponível para exibir gráficos.</p>
+            </div>
+        );
+    }
+
     const paymentData = [
         { name: 'Pagos', value: event.registrations.filter(reg => reg.paymentStatus === 'paid').length },
         { name: 'Pendentes', value: event.registrations.filter(reg => reg.paymentStatus === 'pending').length }

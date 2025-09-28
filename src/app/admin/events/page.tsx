@@ -16,6 +16,7 @@ import {
 } from '@/lib/firebase/storage';
 import bannerImage from '@/assets/fotoDM.png';
 import { fixEventsWithNullParticipants, getEventsWithSync } from '@/lib/firebase/events';
+import { logger } from '@/lib/utils/logger';
 
 export default function AdminEvents() {
     const [title, setTitle] = useState('');
@@ -45,27 +46,29 @@ export default function AdminEvents() {
     useEffect(() => {
         const fetchEvents = async () => {
             try {
-                console.log('🔄 Iniciando carregamento de eventos...');
+                logger.loadingEvents();
 
                 // ✅ USE A FUNÇÃO QUE SINCRONIZA OS PARTICIPANTES
                 const eventsData = await getEventsWithSync();
 
-                console.log('🎯 Eventos carregados com sincronização:', eventsData.length);
+                logger.eventsLoadedWithSync(eventsData.length);
 
-                // ✅ DEBUG: Mostrar detalhes de cada evento
-                eventsData.forEach(event => {
-                    console.log('📊 Evento:', {
-                        id: event.id,
-                        title: event.title,
-                        currentParticipants: event.currentParticipants,
-                        maxParticipants: event.maxParticipants,
-                        tipoCurrent: typeof event.currentParticipants,
-                        tipoMax: typeof event.maxParticipants,
-                        calculo: event.maxParticipants > 0 ?
-                            `(${event.currentParticipants}/${event.maxParticipants}) = ${Math.round((event.currentParticipants / event.maxParticipants) * 100)}%` :
-                            'Sem limite'
+                // ✅ DEBUG: Mostrar detalhes de cada evento apenas em desenvolvimento
+                if (process.env.NODE_ENV === 'development') {
+                    eventsData.forEach(event => {
+                        console.log('📊 Evento:', {
+                            id: event.id,
+                            title: event.title,
+                            currentParticipants: event.currentParticipants,
+                            maxParticipants: event.maxParticipants,
+                            tipoCurrent: typeof event.currentParticipants,
+                            tipoMax: typeof event.maxParticipants,
+                            calculo: event.maxParticipants > 0 ?
+                                `(${event.currentParticipants}/${event.maxParticipants}) = ${Math.round((event.currentParticipants / event.maxParticipants) * 100)}%` :
+                                'Sem limite'
+                        });
                     });
-                });
+                }
 
                 setEvents(eventsData);
             } catch (error) {
