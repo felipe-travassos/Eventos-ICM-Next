@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
 
         const registrationRef = doc(db, 'registrations', registrationId);
 
-        const updateData: any = {
+        const updateData: { paymentId?: string; paymentStatus?: 'pending' | 'paid' | 'refunded'; updatedAt: Date } = {
             updatedAt: new Date()
         };
 
@@ -25,8 +25,8 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, message: 'Inscrição atualizada' });
 
-    } catch (error) {
-        console.error('Erro ao atualizar inscrição:', error);
+    } catch (err: unknown) {
+        console.error('Erro ao atualizar inscrição:', err);
         return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
     }
 }

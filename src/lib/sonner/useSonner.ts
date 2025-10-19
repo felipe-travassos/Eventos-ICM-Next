@@ -33,10 +33,10 @@ export const useSonner = () => {
         });
     };
 
-    const promise = (promise: Promise<any>, options: {
+    const promise = <T = unknown, E = unknown>(promise: Promise<T>, options: {
         loading: string;
-        success: string | ((data: any) => string);
-        error: string | ((error: any) => string);
+        success: string | ((data: T) => string);
+        error: string | ((error: E) => string);
     }) => {
         return toast.promise(promise, options);
     };

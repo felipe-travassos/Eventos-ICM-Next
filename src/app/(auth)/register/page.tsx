@@ -177,9 +177,9 @@ export default function Register() {
 
             // Redireciona para página inicial após registro bem-sucedido
             router.push('/');
-        } catch (error: any) {
-            // Tratamento de erro genérico com mensagem amigável
-            error('Falha ao criar conta: ' + error.message);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            error('Falha ao criar conta: ' + message);
         } finally {
             // Garante que o loading seja desativado em ambos os casos (sucesso/erro)
             setLoading(false);

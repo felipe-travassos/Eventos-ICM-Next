@@ -159,7 +159,7 @@ export default function MyRegistrationsPage() {
     );
 
     // Função createPixPayment atualizada para lidar com errors
-    const createPixPayment = async (paymentRequest: any) => {
+    const createPixPayment = async (paymentRequest: unknown) => {
         try {
             const res = await fetch('/api/pix/create', {
                 method: 'POST',
@@ -174,9 +174,9 @@ export default function MyRegistrationsPage() {
             }
 
             return data;
-        } catch (error) {
-            console.error('Erro na criação do PIX:', error);
-            throw error;
+        } catch (err: unknown) {
+            console.error('Erro na criação do PIX:', err);
+            throw err;
         }
     }
 
@@ -187,9 +187,10 @@ export default function MyRegistrationsPage() {
                 throw new Error(`HTTP error! status: ${res.status}`)
             }
             return await res.json()
-        } catch (error) {
-            console.error('Erro ao verificar status:', error)
-            throw error
+        } catch (err: unknown) {
+            console.error('Erro ao verificar status:', err);
+            const message = err instanceof Error ? err.message : 'Erro ao verificar status';
+            alert(`Erro ao verificar status: ${message}`);
         }
     }
 
@@ -353,8 +354,8 @@ export default function MyRegistrationsPage() {
                 }
                 alert(errorMessage);
             }
-        } catch (error: any) {
-            console.error('❌ Erro no processo de pagamento:', error);
+        } catch (err: unknown) {
+            console.error('❌ Erro no processo de pagamento:', err);
             alert('Erro ao processar pagamento. Tente novamente.');
         } finally {
             setProcessingPayment(null);
@@ -412,7 +413,8 @@ export default function MyRegistrationsPage() {
             }
         } catch (error: any) {
             console.error('Erro ao verificar status:', error);
-            alert(`Erro ao verificar status: ${error.message}`);
+            const message = err instanceof Error ? err.message : 'Erro ao verificar status';
+            alert(`Erro ao verificar status: ${message}`);
         }
     };
 

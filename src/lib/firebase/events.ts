@@ -123,11 +123,12 @@ export const deleteEventRegistration = async (registrationId: string, eventId: s
             success: true,
             message: 'Inscrição excluída com sucesso'
         };
-    } catch (error: any) {
-        console.error('Erro ao excluir inscrição:', error);
+    } catch (err: unknown) {
+        console.error('Erro ao excluir inscrição:', err);
+        const message = err instanceof Error ? err.message : 'Erro desconhecido';
         return {
             success: false,
-            message: 'Erro ao excluir inscrição: ' + error.message
+            message: 'Erro ao excluir inscrição: ' + message
         };
     }
 }
@@ -353,11 +354,12 @@ export const registerForEvent = async (
         console.log('Inscrição realizada com sucesso! Dados da igreja:', { churchName, pastorName });
         return { success: true, message: 'Inscrição realizada com sucesso!' };
 
-    } catch (error: any) {
-        console.error('Erro ao realizar inscrição:', error);
+    } catch (err: unknown) {
+        console.error('Erro ao realizar inscrição:', err);
+        const message = err instanceof Error ? err.message : 'Erro ao realizar inscrição';
         return {
             success: false,
-            message: 'Erro ao realizar inscrição'
+            message
         };
     }
 };

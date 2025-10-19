@@ -225,9 +225,10 @@ export default function HomePage() {
       } else {
         error(result.message);
       }
-    } catch (error: any) {
-      console.error('Erro na inscrição:', error);
-      error(error.message || 'Erro ao realizar inscrição.');
+    } catch (err: unknown) {
+      console.error('Erro na inscrição:', err);
+      const message = err instanceof Error ? err.message : 'Erro ao realizar inscrição.';
+      error(message);
     } finally {
       setRegisteringEventId(null);
     }

@@ -37,9 +37,16 @@ export default function EventManagementPage() {
     } | null>(null);
 
     const [generatingPayment, setGeneratingPayment] = useState<string | null>(null);
+    type PixData = {
+        id: string;
+        qr_code: string;
+        qr_code_base64?: string;
+        ticket_url?: string;
+    };
+
     const [showPixModal, setShowPixModal] = useState<{
         registration: EventRegistration;
-        pixData: any;
+        pixData: PixData;
         event: EventWithRegistrations;
     } | null>(null);
 
@@ -145,7 +152,7 @@ export default function EventManagementPage() {
         } finally {
             setLoading(false);
         }
-    }, [userData?.role, userData?.uid, userData?.churchId]);
+    }, [userData]);
 
     useEffect(() => {
         loadEventsWithRegistrations();
@@ -344,7 +351,7 @@ export default function EventManagementPage() {
         if (!userData || !allowedRoles.includes(userData.role)) {
             return;
         }
-    }, [userData?.role]);
+    }, [userData]);
 
     useEffect(() => {
         if (!selectedEvent) {

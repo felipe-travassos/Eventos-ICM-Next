@@ -11,13 +11,15 @@ import Link from 'next/link';
 import Image from 'next/image'; // Import do Image do Next.js
 import bannerImage from '@/assets/icm-ghibli.png'; // Import da imagem
 
+interface Pastor { id: string; name: string; createdAt: Date }
+
 export default function AdminChurches() {
     const [name, setName] = useState('');
     const [address, setAddress] = useState('');
     const [region, setRegion] = useState('');
     const [pastorId, setPastorId] = useState('');
     const [churches, setChurches] = useState<Church[]>([]);
-    const [users, setUsers] = useState<any[]>([]);
+    const [users, setUsers] = useState<Pastor[]>([]);
     const [loading, setLoading] = useState(false);
     const [editingChurch, setEditingChurch] = useState<Church | null>(null);
     const [showForm, setShowForm] = useState(false);
@@ -55,7 +57,7 @@ export default function AdminChurches() {
         const fetchPastors = async () => {
             try {
                 const querySnapshot = await getDocs(collection(db, 'users'));
-                const pastorsData: any[] = [];
+                const pastorsData: Pastor[] = [];
 
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();

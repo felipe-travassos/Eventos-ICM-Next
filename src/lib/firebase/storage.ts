@@ -21,15 +21,16 @@ export const uploadEventImage = async (file: File, userId: string): Promise<stri
         const downloadURL = await getDownloadURL(snapshot.ref);
 
         return downloadURL;
-    } catch (error: any) {
-        console.error('Erro detalhado ao fazer upload da imagem:', error);
+    } catch (err: unknown) {
+        console.error('Erro detalhado ao fazer upload da imagem:', err);
 
-        if (error.code === 'storage/unauthorized') {
+        const e = err as { code?: string; message?: string };
+        if (e.code === 'storage/unauthorized') {
             throw new Error('Sem permissão para fazer upload. Verifique as regras de segurança do Firebase.');
-        } else if (error.code === 'storage/retry-limit-exceeded') {
+        } else if (e.code === 'storage/retry-limit-exceeded') {
             throw new Error('Tempo limite excedido. Verifique sua conexão com a internet.');
         } else {
-            throw new Error('Falha no upload da imagem: ' + error.message);
+            throw new Error('Falha no upload da imagem: ' + (e.message ?? 'Erro desconhecido'));
         }
     }
 };
@@ -45,9 +46,10 @@ export const uploadEventImageSimple = async (file: File): Promise<string> => {
         const downloadURL = await getDownloadURL(snapshot.ref);
 
         return downloadURL;
-    } catch (error: any) {
-        console.error('Erro no upload simples:', error);
-        throw new Error('Falha no upload da imagem: ' + error.message);
+    } catch (err: unknown) {
+        console.error('Erro no upload simples:', err);
+        const e = err as { message?: string };
+        throw new Error('Falha no upload da imagem: ' + (e.message ?? 'Erro desconhecido'));
     }
 };
 
@@ -58,8 +60,8 @@ export const uploadProfileImage = async (file: File, userId: string): Promise<st
         const snapshot = await uploadBytes(storageRef, file);
         const downloadURL = await getDownloadURL(snapshot.ref);
         return downloadURL;
-    } catch (error) {
-        console.error('Erro ao fazer upload da imagem de perfil:', error);
+    } catch (err: unknown) {
+        console.error('Erro ao fazer upload da imagem de perfil:', err);
         throw new Error('Falha no upload da imagem de perfil');
     }
 };
@@ -74,8 +76,8 @@ export const extractImagePathFromURL = (url: string): string | null => {
             return decodeURIComponent(match[1]);
         }
         return null;
-    } catch (error) {
-        console.error('Erro ao extrair path da URL:', error);
+    } catch (err: unknown) {
+        console.error('Erro ao extrair path da URL:', err);
         return null;
     }
 };
@@ -85,8 +87,8 @@ export const deleteImage = async (filePath: string): Promise<void> => {
     try {
         const storageRef = ref(storage, filePath);
         await deleteObject(storageRef);
-    } catch (error) {
-        console.error('Erro ao deletar imagem:', error);
+    } catch (err: unknown) {
+        console.error('Erro ao deletar imagem:', err);
         throw new Error('Falha ao deletar imagem');
     }
 };

@@ -66,8 +66,8 @@ export async function POST(request: NextRequest) {
             message: 'Inscrição realizada com sucesso'
         });
 
-    } catch (error: any) {
-        console.error('Erro ao criar inscrição:', error);
+    } catch (err: unknown) {
+        console.error('Erro ao criar inscrição:', err);
         return NextResponse.json(
             { error: 'Erro interno do servidor' },
             { status: 500 }

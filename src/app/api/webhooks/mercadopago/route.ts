@@ -71,7 +71,7 @@ async function processPaymentNotification(paymentId: string) {
         }
         
         // Preparar dados para atualização
-        const updateData: any = {
+        const updateData = {
             paymentStatus: paymentData.status,
             mercadoPagoStatus: paymentData.status,
             statusDetail: paymentData.status_detail,
@@ -193,16 +193,15 @@ export async function POST(request: NextRequest) {
             })
         }
         
-    } catch (error: any) {
-        console.error('❌ ERRO NO WEBHOOK MERCADO PAGO:', {
-            message: error.message,
-            stack: error.stack
-        })
+    } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Erro interno no processamento do webhook';
+        const stack = err instanceof Error ? err.stack : undefined;
+        console.error('❌ ERRO NO WEBHOOK MERCADO PAGO:', { message: msg, stack })
         
         return NextResponse.json({
             success: false,
             error: 'Erro interno no processamento do webhook',
-            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+            details: process.env.NODE_ENV === 'development' ? msg : undefined
         }, { status: 500 })
     }
 }

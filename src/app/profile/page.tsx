@@ -154,9 +154,10 @@ export default function ProfilePage() {
 
             toast.success('Perfil atualizado com sucesso!'); // Feedback de sucesso
 
-        } catch (error: any) {
-            console.error('Erro ao atualizar perfil:', error);
-            toast.error('Erro ao atualizar perfil: ' + error.message); // Feedback de erro
+        } catch (err: unknown) {
+            console.error('Erro ao atualizar perfil:', err);
+            const message = err instanceof Error ? err.message : 'Erro ao atualizar perfil';
+            toast.error('Erro ao atualizar perfil: ' + message); // Feedback de erro
         } finally {
             setLoading(false); // Desativa estado de carregamento
         }
