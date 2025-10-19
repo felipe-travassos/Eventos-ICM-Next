@@ -81,16 +81,26 @@ export async function POST(request: NextRequest) {
             data: registrationData
         });
 
-    } catch (error: any) {
-        console.error('Erro ao criar inscrição:', error);
-        return NextResponse.json(
-            {
-                error: 'Erro interno do servidor',
-                details: error.message
-            },
-            { status: 500 }
-        );
-    }
+-    } catch (error: any) {
+-        console.error('Erro ao criar inscrição:', error);
+-        return NextResponse.json(
+-            {
+-                error: 'Erro interno do servidor',
+-                details: error.message
+-            },
+-            { status: 500 }
+-        );
++    } catch (err: unknown) {
++        const message = err instanceof Error ? err.message : 'Erro interno do servidor';
++        console.error('Erro ao criar inscrição:', err);
++        return NextResponse.json(
++            {
++                error: 'Erro interno do servidor',
++                details: message
++            },
++            { status: 500 }
++        );
+     }
 }
 
 // Também pode adicionar GET para listar inscrições
@@ -117,8 +127,12 @@ export async function GET(request: NextRequest) {
         }));
 
         return NextResponse.json(registrations);
-    } catch (error) {
-        console.error('Erro ao buscar inscrições:', error);
-        return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
-    }
+-    } catch (error) {
+-        console.error('Erro ao buscar inscrições:', error);
+-        return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
++    } catch (err: unknown) {
++        const message = err instanceof Error ? err.message : 'Erro interno';
++        console.error('Erro ao buscar inscrições:', err);
++        return NextResponse.json({ error: message }, { status: 500 });
+     }
 }

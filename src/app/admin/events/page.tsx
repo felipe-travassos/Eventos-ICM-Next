@@ -138,9 +138,10 @@ export default function AdminEvents() {
                     // Use a função do storage.ts
                     imageURL = await uploadEventImage(image, userData.id);
                     console.log('Imagem salva com URL:', imageURL);
-                } catch (error: any) {
-                    console.error('Erro no upload da imagem:', error);
-                    alert('Erro ao fazer upload da imagem: ' + error.message);
+                } catch (err: unknown) {
+                    console.error('Erro no upload da imagem:', err);
+                    const message = err instanceof Error ? err.message : 'Erro ao fazer upload da imagem';
+                    alert('Erro ao fazer upload da imagem: ' + message);
                     setLoading(false);
                     return;
                 }

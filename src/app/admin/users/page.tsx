@@ -4,13 +4,14 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { getUsers, updateUserRole } from '@/lib/firebase/users';
-import { UserRole } from '@/types';
+import { UserRole, User } from '@/types';
 import { toast } from 'sonner';
 
 export default function AdminUsersPage() {
     const { userData } = useAuth();
     const router = useRouter();
-    const [users, setUsers] = useState<any[]>([]);
+-    const [users, setUsers] = useState<any[]>([]);
++    const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState<string | null>(null);
     const [nameFilter, setNameFilter] = useState('');
@@ -31,12 +32,16 @@ export default function AdminUsersPage() {
             setLoading(true);
             const usersData = await getUsers();
             setUsers(usersData);
-        } catch (error) {
-        console.error('Erro ao carregar usuários:', error);
-        toast.error('Erro ao carregar usuários');
-      } finally {
+-        } catch (error) {
+-        console.error('Erro ao carregar usuários:', error);
+-        toast.error('Erro ao carregar usuários');
++        } catch (err: unknown) {
++        const message = err instanceof Error ? err.message : 'Erro ao carregar usuários';
++        console.error('Erro ao carregar usuários:', err);
++        toast.error(message);
+       } finally {
         setLoading(false);
-      }
+       }
     };
 
     const handleRoleChange = async (userId: string, newRole: UserRole) => {
@@ -49,9 +54,13 @@ export default function AdminUsersPage() {
             setUsers(users.map(user =>
                 user.id === userId ? { ...user, role: newRole } : user
             ));
-        } catch (error: any) {
-            console.error('Erro ao atualizar função:', error);
-            toast.error('Erro ao atualizar função: ' + error.message);
+-        } catch (error: any) {
+-            console.error('Erro ao atualizar função:', error);
+-            toast.error('Erro ao atualizar função: ' + error.message);
++        } catch (err: unknown) {
++            const message = err instanceof Error ? err.message : 'Erro ao atualizar função';
++            console.error('Erro ao atualizar função:', err);
++            toast.error('Erro ao atualizar função: ' + message);
         } finally {
             setUpdating(null);
         }

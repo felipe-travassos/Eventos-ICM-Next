@@ -49,10 +49,15 @@ const EventCard: React.FC<EventCardProps> = ({
             await onSubscribe(event.id);
             setRegistrationStatus('success');
             setRegistrationMessage('Inscrição realizada com sucesso!');
-        } catch (error: any) {
-            console.error('Erro ao se inscrever no evento:', error);
-            setRegistrationStatus('error');
-            setRegistrationMessage(error.message || 'Erro ao realizar inscrição. Tente novamente.');
+-        } catch (error: any) {
+-            console.error('Erro ao se inscrever no evento:', error);
+-            setRegistrationStatus('error');
+-            setRegistrationMessage(error.message || 'Erro ao realizar inscrição. Tente novamente.');
++        } catch (err: unknown) {
++            const message = err instanceof Error ? err.message : 'Erro ao realizar inscrição. Tente novamente.';
++            console.error('Erro ao se inscrever no evento:', err);
++            setRegistrationStatus('error');
++            setRegistrationMessage(message);
         }
     };
 

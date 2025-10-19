@@ -3,6 +3,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import admin, { adminDb } from '@/lib/firebase/admin'
 
+// Tipagem dos itens do pagamento
+type PaymentItem = {
+    id: string;
+    title: string;
+    description: string;
+    category_id: string;
+    quantity: number;
+    unit_price: number;
+};
+
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
@@ -37,7 +47,7 @@ export async function POST(request: NextRequest) {
         const externalReference = metadata.registrationId;
 
         // Preparar o payload completo para o Mercado Pago
-        const paymentPayload: any = {
+        const paymentPayload = {
             transaction_amount,
             description,
             payment_method_id: 'pix',
@@ -66,7 +76,7 @@ export async function POST(request: NextRequest) {
             ...(additional_info && {
                 additional_info: {
                     ...(additional_info.items && {
-                        items: additional_info.items.map((item: any) => ({
+                        items: additional_info.items.map((item: PaymentItem) => ({
                             id: item.id,
                             title: item.title,
                             description: item.description,
@@ -134,19 +144,19 @@ export async function POST(request: NextRequest) {
             items: additional_info?.items
         }, { status: 200 })
 
-    } catch (err: any) {
-        console.error('❌ ERRO CRIANDO PIX:', {
-            message: err.message,
-            stack: err.stack,
-            response: err.response?.data
-        })
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Erro ao criar pagamento Pix';
+        const stack = err instanceof Error ? err.stack : undefined;
+        // ... existing code ...
+        const responseData = (err as { response?: { data?: unknown } })?.response?.data;
+        console.error('❌ ERRO CRIANDO PIX:', { message, stack, response: responseData })
 
         return NextResponse.json({
             error: 'Erro ao criar pagamento Pix',
-            details: err.message,
+            details: message,
             ...(process.env.NODE_ENV === 'development' && {
-                stack: err.stack,
-                response: err.response?.data
+                stack,
+                response: responseData
             })
         }, { status: 500 })
     }

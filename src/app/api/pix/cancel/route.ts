@@ -66,32 +66,65 @@ export async function POST(request: NextRequest) {
                     data: cancelResponse.data
                 })
 
-            } catch (cancelError: any) {
-                console.error('❌ Erro ao cancelar PIX:', {
-                    message: cancelError.message,
-                    status: cancelError.response?.status,
-                    data: cancelError.response?.data
-                })
-
-                // Mesmo se não conseguir cancelar, marca como cancelado no sistema
-                if (registrationId) {
-                    await adminDb
-                        .collection('registrations')
-                        .doc(registrationId)
-                        .update({
-                            paymentStatus: 'cancelled',
-                            cancelledAt: new Date(),
-                            cancellationReason: 'tentativa de cancelamento falhou',
-                            cancellationError: cancelError.message
-                        })
-                }
-
-                return NextResponse.json({
-                    success: false,
-                    message: 'Não foi possível cancelar o PIX no Mercado Pago',
-                    error: cancelError.response?.data || cancelError.message
-                }, { status: 500 })
-            }
+-            } catch (cancelError: any) {
+-                console.error('❌ Erro ao cancelar PIX:', {
+-                    message: cancelError.message,
+-                    status: cancelError.response?.status,
+-                    data: cancelError.response?.data
+-                })
+-
+-                // Mesmo se não conseguir cancelar, marca como cancelado no sistema
+-                if (registrationId) {
+-                    await adminDb
+-                        .collection('registrations')
+-                        .doc(registrationId)
+-                        .update({
+-                            paymentStatus: 'cancelled',
+-                            cancelledAt: new Date(),
+-                            cancellationReason: 'tentativa de cancelamento falhou',
+-                            cancellationError: cancelError.message
+-                        })
+-                }
+-
+-                return NextResponse.json({
+-                    success: false,
+-                    message: 'Não foi possível cancelar o PIX no Mercado Pago',
+-                    error: cancelError.response?.data || cancelError.message
+-                }, { status: 500 })
++            } catch (err: unknown) {
++                const message = err instanceof Error ? err.message : 'Erro ao cancelar PIX';
++                const responseStatus = typeof err === 'object' && err !== null && 'response' in err
++                    ? (err as { response?: { status?: number } }).response?.status
++                    : undefined;
++                const responseData = typeof err === 'object' && err !== null && 'response' in err
++                    ? (err as { response?: { data?: unknown } }).response?.data
++                    : undefined;
++
++                console.error('❌ Erro ao cancelar PIX:', {
++                    message,
++                    status: responseStatus,
++                    data: responseData
++                })
++
++                // Mesmo se não conseguir cancelar, marca como cancelado no sistema
++                if (registrationId) {
++                    await adminDb
++                        .collection('registrations')
++                        .doc(registrationId)
++                        .update({
++                            paymentStatus: 'cancelled',
++                            cancelledAt: new Date(),
++                            cancellationReason: 'tentativa de cancelamento falhou',
++                            cancellationError: message
++                        })
++                }
++
++                return NextResponse.json({
++                    success: false,
++                    message: 'Não foi possível cancelar o PIX no Mercado Pago',
++                    error: responseData || message
++                }, { status: 500 })
+             }
         } else {
             console.log('⚠️ Pagamento não pode ser cancelado. Status atual:', currentStatus)
 
@@ -125,17 +158,37 @@ export async function POST(request: NextRequest) {
             }, { status: 400 })
         }
 
-    } catch (error: any) {
-        console.error('❌ ERRO NO CANCELAMENTO PIX:', {
-            message: error.message,
-            status: error.response?.status,
-            data: error.response?.data
-        })
-
-        return NextResponse.json({
-            success: false,
-            error: 'Erro ao cancelar pagamento Pix',
-            details: error.response?.data || error.message
-        }, { status: 500 })
-    }
+-    } catch (error: any) {
+-        console.error('❌ ERRO NO CANCELAMENTO PIX:', {
+-            message: error.message,
+-            status: error.response?.status,
+-            data: error.response?.data
+-        })
+-
+-        return NextResponse.json({
+-            success: false,
+-            error: 'Erro ao cancelar pagamento Pix',
+-            details: error.response?.data || error.message
+-        }, { status: 500 })
++    } catch (err: unknown) {
++        const message = err instanceof Error ? err.message : 'Erro ao cancelar pagamento Pix';
++        const responseStatus = typeof err === 'object' && err !== null && 'response' in err
++            ? (err as { response?: { status?: number } }).response?.status
++            : undefined;
++        const responseData = typeof err === 'object' && err !== null && 'response' in err
++            ? (err as { response?: { data?: unknown } }).response?.data
++            : undefined;
++
++        console.error('❌ ERRO NO CANCELAMENTO PIX:', {
++            message,
++            status: responseStatus,
++            data: responseData
++        })
++
++        return NextResponse.json({
++            success: false,
++            error: 'Erro ao cancelar pagamento Pix',
++            details: responseData || message
++        }, { status: 500 })
+     }
 }

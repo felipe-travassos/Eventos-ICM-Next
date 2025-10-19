@@ -37,11 +37,18 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json(pixData);
 
-    } catch (err: any) {
-        console.error('Erro ao buscar pagamento:', err);
-        return NextResponse.json(
-            { error: 'Erro ao buscar pagamento' },
-            { status: 500 }
-        );
-    }
+-    } catch (err: any) {
+-        console.error('Erro ao buscar pagamento:', err);
+-        return NextResponse.json(
+-            { error: 'Erro ao buscar pagamento' },
+-            { status: 500 }
+-        );
++    } catch (err: unknown) {
++        const message = err instanceof Error ? err.message : 'Erro ao buscar pagamento';
++        console.error('Erro ao buscar pagamento:', err);
++        return NextResponse.json(
++            { error: message },
++            { status: 500 }
++        );
+     }
 }

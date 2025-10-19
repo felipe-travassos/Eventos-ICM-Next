@@ -49,7 +49,8 @@ export async function GET(request: NextRequest) {
         })
 
         // Atualiza no Firestore com todos os dados relevantes
-        const updateData: any = {
+-        const updateData: any = {
++        const updateData: Record<string, unknown> = {
             paymentStatus: status,
             lastStatusCheck: admin.firestore.FieldValue.serverTimestamp(),
             mercadoPagoStatus: status,
@@ -111,40 +112,89 @@ export async function GET(request: NextRequest) {
             items: paymentData.additional_info?.items
         }, { status: 200 })
 
-    } catch (error: any) {
-        console.error('❌ ERRO CONSULTANDO STATUS PIX:', {
-            message: error.message,
-            isAxiosError: error.isAxiosError,
-            status: error.response?.status,
-            responseData: error.response?.data,
-            url: error.config?.url
-        })
-
-        // Tenta atualizar o status como erro no Firestore
-        try {
-            const registrationId = new URL(request.url).searchParams.get('registrationId');
-            if (registrationId) {
-                await adminDb
-                    .collection('registrations')
-                    .doc(registrationId)
-                    .update({
-                        lastStatusCheck: admin.firestore.FieldValue.serverTimestamp(),
-                        statusCheckError: error.message
-                    })
-            }
-        } catch (firestoreError) {
-            console.error('Erro ao atualizar status de erro no Firestore:', firestoreError);
-        }
-
-        return NextResponse.json(
-            {
-                error: 'Erro ao verificar status do Pix',
-                details: error.response?.data || error.message,
-                ...(process.env.NODE_ENV === 'development' && {
-                    stack: error.stack
-                })
-            },
-            { status: 500 }
-        )
-    }
+-    } catch (error: any) {
+-        console.error('❌ ERRO CONSULTANDO STATUS PIX:', {
+-            message: error.message,
+-            isAxiosError: error.isAxiosError,
+-            status: error.response?.status,
+-            responseData: error.response?.data,
+-            url: error.config?.url
+-        })
+-
+-        // Tenta atualizar o status como erro no Firestore
+-        try {
+-            const registrationId = new URL(request.url).searchParams.get('registrationId');
+-            if (registrationId) {
+-                await adminDb
+-                    .collection('registrations')
+-                    .doc(registrationId)
+-                    .update({
+-                        lastStatusCheck: admin.firestore.FieldValue.serverTimestamp(),
+-                        statusCheckError: error.message
+-                    })
+-            }
+-        } catch (firestoreError) {
+-            console.error('Erro ao atualizar status de erro no Firestore:', firestoreError);
+-        }
+-
+-        return NextResponse.json(
+-            {
+-                error: 'Erro ao verificar status do Pix',
+-                details: error.response?.data || error.message,
+-                ...(process.env.NODE_ENV === 'development' && {
+-                    stack: error.stack
+-                })
+-            },
+-            { status: 500 }
+-        )
++    } catch (err: unknown) {
++        const message = err instanceof Error ? err.message : 'Erro ao verificar status do Pix';
++        const isAxiosError = typeof err === 'object' && err !== null && 'isAxiosError' in err
++            ? (err as { isAxiosError?: boolean }).isAxiosError
++            : undefined;
++        const responseStatus = typeof err === 'object' && err !== null && 'response' in err
++            ? (err as { response?: { status?: number } }).response?.status
++            : undefined;
++        const responseData = typeof err === 'object' && err !== null && 'response' in err
++            ? (err as { response?: { data?: unknown } }).response?.data
++            : undefined;
++        const url = typeof err === 'object' && err !== null && 'config' in err
++            ? (err as { config?: { url?: string } }).config?.url
++            : undefined;
++
++        console.error('❌ ERRO CONSULTANDO STATUS PIX:', {
++            message,
++            isAxiosError,
++            status: responseStatus,
++            responseData,
++            url
++        })
++
++        // Tenta atualizar o status como erro no Firestore
++        try {
++            const regId = new URL(request.url).searchParams.get('registrationId');
++            if (regId) {
++                await adminDb
++                    .collection('registrations')
++                    .doc(regId)
++                    .update({
++                        lastStatusCheck: admin.firestore.FieldValue.serverTimestamp(),
++                        statusCheckError: message
++                    })
++            }
++        } catch (firestoreError) {
++            console.error('Erro ao atualizar status de erro no Firestore:', firestoreError);
++        }
++
++        return NextResponse.json(
++            {
++                error: 'Erro ao verificar status do Pix',
++                details: responseData || message,
++                ...(process.env.NODE_ENV === 'development' && {
++                    stack: err instanceof Error ? err.stack : undefined
++                })
++            },
++            { status: 500 }
++        )
+     }
 }
