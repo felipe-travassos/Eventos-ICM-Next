@@ -74,14 +74,11 @@ export default function ForgotPassword() {
                 }
             );
 
--        } catch (error: any) {
--            // Tratamento de erro genérico
--            console.error('Erro inesperado:', error);
-+        } catch (err: unknown) {
-+            // Tratamento de erro genérico
-+            const message = err instanceof Error ? err.message : 'Erro inesperado';
-+            console.error('Erro inesperado:', err);
-+            // Opcionalmente poderíamos mostrar um toast com message
+        } catch (err: unknown) {
+            // Tratamento de erro genérico
+            const message = err instanceof Error ? err.message : 'Erro inesperado';
+            console.error('Erro inesperado:', err);
+            // Opcionalmente poderíamos mostrar um toast com message
          } finally {
             // Desativa loading independente de sucesso ou erro
             setLoading(false);
